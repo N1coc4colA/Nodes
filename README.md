@@ -9,8 +9,10 @@ I was looking for already done apps that was with a "node" system, or diagram. I
 I translated the code to C++, and added features.
 
 ## Which dependencies?
+```
 Qt Core
 Qt Widget
+```
 
 ## How to compile the app?
 A simple
