@@ -79,6 +79,7 @@ void PortItem::updateSize()
 
     if (m_isOutput) {
         int x;
+        int w = metrics.width(m_name);
         if (m_node != nullptr) {
             x = - m_node->getWidth()/2 - radius - margin*2 - portTextWidth;
             if (needsSizeUpdate) {
@@ -91,7 +92,7 @@ void PortItem::updateSize()
 
         int px;
         if (needsSizeUpdate) {
-            px = -m_node->getWidth()/2 + 60;
+            px = -m_node->getWidth()/2 +w;
         } else {
             px = -m_node->getWidth()/2-radius-18;
         }

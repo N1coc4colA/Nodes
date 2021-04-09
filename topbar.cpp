@@ -34,7 +34,7 @@ TopBar::TopBar(QWidget *parent) : QWidget(parent)
     mainLayout->addWidget(save);
     mainLayout->addWidget(open);
 
-    mainLayout->setSpacing(0);
+    mainLayout->setSpacing(2);
     mainLayout->setMargin(2);
 
     connect(addObj, &QPushButton::clicked, this, &TopBar::generateNode);

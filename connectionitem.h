@@ -9,6 +9,7 @@ class ConnectionItem : public QGraphicsPathItem
 {
 public:
     explicit ConnectionItem(QGraphicsItem *parent = nullptr);
+    ~ConnectionItem() override;
 
     void remove();
     PortItem *startPort();

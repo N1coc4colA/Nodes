@@ -108,7 +108,7 @@ void NodeItem::remove()
     i = 0;
     int len = list.length();
     while (i<len) {
-        list[0]->remove();
+        list[i]->remove();
         i++;
     }
 

@@ -19,6 +19,11 @@ ConnectionItem::ConnectionItem(QGraphicsItem *parent) : QGraphicsPathItem(parent
     m_uid = UIDC::uid();
 }
 
+ConnectionItem::~ConnectionItem()
+{
+    //this->QGraphicsPathItem::~QGraphicsPathItem();
+}
+
 int ConnectionItem::UID()
 {
     return m_uid;
