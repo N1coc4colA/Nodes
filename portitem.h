@@ -1,6 +1,8 @@
 #ifndef PORTITEM_H
 #define PORTITEM_H
 
+#include "linkstype.h"
+
 #include <QFont>
 #include <QFontMetrics>
 #include <QGraphicsPathItem>
@@ -19,6 +21,7 @@ public:
     void setPortFlags(int flags);
     void setPtr(void *ptr);
     void setConnection(ConnectionItem *item);
+	void setLnType(LnTypeHolder &t);
 
     void clearConnection();
     void remove();
@@ -37,6 +40,11 @@ public:
     NodeItem *node();
     ConnectionItem *connection();
     int UID();
+	LnTypeHolder &lnType();
+
+	QPointF dotPos();
+
+	QRectF boundingRect() const override;
 
 private:
     bool needsSizeUpdate = false;
@@ -46,15 +54,17 @@ private:
     QString m_name;
     NodeItem *m_node = nullptr;
     ConnectionItem *m_connection = nullptr;
+	LnTypeHolder t;
 
     QPainterPath textPath;
+	QPainterPath dotPath;
     QFont font;
     QFontMetrics metrics;
 
     int margin = 2;
     int radius = 5;
-    int portTextWidth = 0;
-    int portTextHeight = 0;
+	qreal portTextWidth = 0;
+	qreal portTextHeight = 0;
     bool disablePainting = false;
     int m_uid = 0;
 };

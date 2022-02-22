@@ -21,7 +21,7 @@ protected:
 };
 
 class View;
-class NodeEditor;
+class NodeConnector;
 
 class NodeWidget : public QWidget
 {
@@ -33,14 +33,11 @@ public:
     void createNode(QString name);
     QGraphicsScene *scene();
 
-Q_SIGNALS:
-    void scaled(double s);
-
 public Q_SLOTS:
     void requestScaling(double scaling);
 
 private:
-    NodeEditor *m_nodeEditor;
+	NodeConnector *m_nodeEditor;
     NodeScene *m_nodeScene;
     View *m_view;
 };

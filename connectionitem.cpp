@@ -15,14 +15,11 @@ ConnectionItem::ConnectionItem(QGraphicsItem *parent) : QGraphicsPathItem(parent
     setFlag(QGraphicsItem::GraphicsItemFlag::ItemIsSelectable);
     setPen(QPen(QColor(200, 200, 200), 2));
     setBrush(Qt::NoBrush);
-    setZValue(-1);
+	setZValue(-1);
     m_uid = UIDC::uid();
 }
 
-ConnectionItem::~ConnectionItem()
-{
-    //this->QGraphicsPathItem::~QGraphicsPathItem();
-}
+ConnectionItem::~ConnectionItem() {}
 
 int ConnectionItem::UID()
 {
@@ -69,7 +66,17 @@ QPointF ConnectionItem::endPos()
 
 void ConnectionItem::setHighlighted(bool highlight)
 {
-    m_highlight = highlight;
+	m_highlighted = highlight;
+	update();
+}
+
+void ConnectionItem::setWarned(bool enable)
+{
+	bool rd = enable != m_warned;
+	m_warned = enable;
+	if (rd) {
+		update();
+	}
 }
 
 void ConnectionItem::setEndPort(PortItem *port)
@@ -106,12 +113,11 @@ void ConnectionItem::updateStartEndPos()
         m_endPort = m_startPort;
         m_startPort = temp;
     }
-    if (m_startPort != nullptr) {
-        start_pos = m_startPort->scenePos();
-        start_pos.setX(start_pos.x() - 10);
+	if (m_startPort != nullptr) {
+		start_pos = m_startPort->dotPos();
     }
     if (m_endPort != nullptr) {
-        end_pos = m_endPort->scenePos();
+		end_pos = m_endPort->dotPos();
     }
     updatePath();
 }
@@ -132,10 +138,18 @@ void ConnectionItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *op
 {
     Q_UNUSED(option);
     Q_UNUSED(widget);
-    if (isSelected() || m_highlight) {
-        painter->setPen(QPen(QPalette().color(QPalette::ColorGroup::Current, QPalette::ColorRole::Highlight), 2));
+	if (m_warned) {
+		painter->setPen(QPen(Qt::red, 3));
+	} else if (isSelected() || m_highlighted) {
+		painter->setPen(QPen(QPalette().color(QPalette::ColorGroup::Current, QPalette::ColorRole::Highlight), 2.5));
     } else {
-        painter->setPen(QPen(QPalette().color(QPalette::ColorGroup::Current, QPalette::ColorRole::Highlight), 1.5));
+		if (m_startPort) {
+			painter->setPen(QPen(m_startPort->lnType().type->color, 1.5));
+		} else if (m_endPort) {
+			painter->setPen(QPen(m_endPort->lnType().type->color, 1.5));
+		} else {
+			painter->setPen(QPen(QPalette().color(QPalette::ColorGroup::Current, QPalette::ColorRole::Highlight), 1.5));
+		}
     }
     painter->drawPath(path());
 }

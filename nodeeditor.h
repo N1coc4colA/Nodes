@@ -1,27 +1,72 @@
 #ifndef NODEEDITOR_H
 #define NODEEDITOR_H
 
-#include <QGraphicsScene>
+#include <QWidget>
+#include <QLineEdit>
+#include <QStyledItemDelegate>
 
 class ConnectionItem;
 class PortItem;
 class NodeItem;
 
-class NodeEditor : public QObject
+class NodeEditorDelegate : public QStyledItemDelegate
+{
+	Q_OBJECT
+
+public:
+	NodeEditorDelegate(QObject *parent = nullptr);
+
+	QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option,
+						  const QModelIndex &index) const override;
+
+	void setEditorData(QWidget *editor, const QModelIndex &index) const override;
+	void setModelData(QWidget *editor, QAbstractItemModel *model,
+					  const QModelIndex &index) const override;
+
+	void updateEditorGeometry(QWidget *editor, const QStyleOptionViewItem &option,
+							  const QModelIndex &index) const override;
+};
+
+class NodeItem;
+class QTableWidget;
+
+class oldStorage {
+public:
+    QString title = QObject::tr("Title");
+    QString type = QObject::tr("Type");
+
+    inline static oldStorage *instance() {
+        static oldStorage *inst = new oldStorage;
+        return inst;
+    }
+};
+
+class NodeEditor : public QWidget
 {
     Q_OBJECT
 public:
-    explicit NodeEditor(QObject *parent = nullptr);
+	explicit NodeEditor(NodeItem *src = nullptr);
 
-    void install(QGraphicsScene *scene);
-    QGraphicsItem *itemAt(QPointF p);
+Q_SIGNALS:
+    void returned(NodeItem *);
 
-    bool eventFilter(QObject *watched, QEvent *event);
+public Q_SLOTS:
+    void applyChanges();
+
+protected:
+	void closeEvent(QCloseEvent *e);
+
 private:
-    QGraphicsScene *m_scene = nullptr;
-    PortItem *m_port = nullptr;
-    ConnectionItem *m_connection = nullptr;
-    NodeItem *m_lastSelected = nullptr;
+    NodeItem *m_target;
+
+    QLineEdit *m_title;
+    QLineEdit *m_type;
+	QTableWidget *m_list;
+	NodeEditorDelegate *dlg;
+
+    oldStorage *storage = oldStorage::instance();
 };
+
+
 
 #endif // NODEEDITOR_H

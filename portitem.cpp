@@ -3,6 +3,8 @@
 #include "helpers.h"
 #include "connectionitem.h"
 #include "nodeitem.h"
+#include "nodepalette.h"
+#include "relayer.h"
 
 #include <QPen>
 #include <QBrush>
@@ -14,16 +16,19 @@
 
 PortItem::PortItem(QGraphicsItem *parent) :
     QGraphicsPathItem(parent),
-    metrics(font)
+	t(nullptr),
+	metrics(font)
 {
     margin = 2;
     radius = 5;
-
-    setFlag(GraphicsItemFlag::ItemSendsScenePositionChanges);
-
     portTextHeight = metrics.height();
-
     m_uid = UIDC::uid();
+	setFlag(GraphicsItemFlag::ItemSendsScenePositionChanges);
+
+	QObject::connect(Relayer::instance(), &Relayer::nodePaletteChanged, Relayer::instance(), [this]() {
+		std::cout << "Palette changed" << std::endl;
+		update();
+	});
 }
 
 int PortItem::UID()
@@ -38,7 +43,7 @@ bool PortItem::isConnected()
 
 bool PortItem::canConnectTo(PortItem *port)
 {
-    return ((port != nullptr) || (port->node() != m_node) || (m_isOutput != port->isOutput()));
+	return ((port != nullptr) && (port->node() != m_node) && (m_isOutput != port->isOutput()));
 }
 
 bool PortItem::isOutput()
@@ -64,7 +69,8 @@ void PortItem::setPortFlags(int flags)
 void PortItem::setName(QString name)
 {
     m_name = name;
-    portTextWidth = metrics.width(name);
+	portTextWidth = metrics.horizontalAdvance(name);
+	portTextHeight = metrics.height();
     updateSize();
 }
 
@@ -73,44 +79,25 @@ void PortItem::makeUpdateOnPaint()
     needsSizeUpdate = true;
 }
 
+QRectF PortItem::boundingRect() const
+{
+	return QRectF(0, 0, portTextWidth + 10 + radius*2, portTextHeight);
+}
+
 void PortItem::updateSize()
 {
-    QPainterPath m_path;
+	textPath.clear();
+	dotPath.clear();
 
-    if (m_isOutput) {
-        int x;
-        int w = metrics.width(m_name);
-        if (m_node != nullptr) {
-            x = - m_node->getWidth()/2 - radius - margin*2 - portTextWidth;
-            if (needsSizeUpdate) {
-                x += m_node->getWidth()/2 - 20;
-            }
-        } else {
-            x = - radius*2 - margin*2 - portTextWidth;
-        }
-        int y = portTextHeight/4;
+	qreal y = radius*2;
 
-        int px;
-        if (needsSizeUpdate) {
-            px = -m_node->getWidth()/2 +w;
-        } else {
-            px = -m_node->getWidth()/2-radius-18;
-        }
-
-        if (needsSizeUpdate) {
-            x -= 30;
-        }
-
-        m_path.addEllipse(px, -radius, 2*radius, 2*radius);
-        textPath.addText(x-20, y, font, m_name);
+	if (m_isOutput) {
+		textPath.addText(0, y, font, m_name);
+		dotPath.addEllipse(portTextWidth + 10, 0, 2*radius, 2*radius);
     } else {
-        int x = radius + margin;
-        int y = portTextHeight/4;
-
-        m_path.addEllipse(-radius-margin, -radius, 2*radius, 2*radius);
-        textPath.addText(x, y, font, m_name);
-    }
-    setPath(m_path);
+		textPath.addEllipse(0, 0, 2*radius, 2*radius);
+		dotPath.addText(radius +10, y, font, m_name);
+	}
 
     if (parentItem() != nullptr) {
         parentItem()->update();
@@ -162,6 +149,16 @@ void PortItem::remove()
     //this->~PortItem();
 }
 
+void PortItem::setLnType(LnTypeHolder &t)
+{
+	this->t = t;
+}
+
+LnTypeHolder &PortItem::lnType()
+{
+	return t;
+}
+
 QVariant PortItem::itemChange(QGraphicsItem::GraphicsItemChange change, const QVariant &value)
 {
     if (change == GraphicsItemChange::ItemScenePositionHasChanged) {
@@ -172,19 +169,22 @@ QVariant PortItem::itemChange(QGraphicsItem::GraphicsItemChange change, const QV
     return value;
 }
 
-void PortItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget)
+void PortItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidget *)
 {
     if (needsSizeUpdate) {
         updateSize();
-        needsSizeUpdate = false;
-        std::cout << "PX: " << m_node->x() + m_node->width() << ", CX: " << this->x() + textPath.boundingRect().width() + path().boundingRect().width()  << std::endl;
-    }
-
-    painter->setPen(QPen(1));
-    painter->setBrush(Qt::green);
-    painter->drawPath(path());
+		needsSizeUpdate = false;
+	}
 
     painter->setPen(Qt::NoPen);
-    painter->setBrush(Qt::green);
+	painter->setBrush(m_isOutput ? NodePalette::instance()->getRight() : NodePalette::instance()->getLeft());
     painter->drawPath(textPath);
+}
+
+QPointF PortItem::dotPos()
+{
+	if (m_isOutput) {
+		return QPointF(portTextWidth + 10 + radius + scenePos().x(), radius + scenePos().y());
+	}
+	return QPointF(radius + scenePos().x(), radius + scenePos().y());
 }

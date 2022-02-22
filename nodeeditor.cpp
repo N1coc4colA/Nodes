@@ -1,142 +1,242 @@
 #include "nodeeditor.h"
 
-#include "helpers.h"
-#include "connectionitem.h"
-#include "portitem.h"
 #include "nodeitem.h"
+#include "portitem.h"
+#include "linkstype.h"
+#include "relayer.h"
 
-#include <QEvent>
-#include <QKeyEvent>
-#include <QWidgetItem>
-#include <QMetaObject>
-#include <QGraphicsSceneMouseEvent>
+#include <QHBoxLayout>
+#include <QVBoxLayout>
+#include <QPushButton>
+#include <QLabel>
+#include <QTableWidget>
+#include <QSpacerItem>
+#include <QAction>
+#include <QHeaderView>
+#include <QComboBox>
+#include <QCheckBox>
 
 #include <iostream>
 
-NodeEditor::NodeEditor(QObject *parent) : QObject(parent) {}
-
-void NodeEditor::install(QGraphicsScene *scene)
+NodeEditorDelegate::NodeEditorDelegate(QObject *p) : QStyledItemDelegate(p)
 {
-    m_scene = scene;
-    scene->installEventFilter(this);
 }
 
-QGraphicsItem *NodeEditor::itemAt(QPointF p)
+QWidget *NodeEditorDelegate::createEditor(QWidget *p, const QStyleOptionViewItem &option, const QModelIndex &index) const
 {
-    QList<QGraphicsItem *> list = m_scene->items(QRectF(p - QPointF(1, 1), QSize(3, 3)));
-
-    if (list.isEmpty()) {
-        return nullptr;
-    } else {
-        return list[0];
-    }
+	switch (index.column()) {
+	case 1: {
+		QCheckBox *bx = new QCheckBox(p);
+		return bx;
+	}
+	case 2: {
+		QComboBox *bx = new QComboBox(p);
+		bx->addItems(LinksTypeHolder::instance()->typeNames());
+		return bx;
+	}
+	default: {
+		return QStyledItemDelegate::createEditor(p, option, index);
+	}
+	}
 }
 
-bool NodeEditor::eventFilter(QObject *watched, QEvent *e)
+void NodeEditorDelegate::setEditorData(QWidget *edit, const QModelIndex &index) const
 {
-    if (isinstance<QWidgetItem>(e)) {
-        return false;
+	switch(index.column()) {
+	case 1: {
+		QCheckBox *bx = static_cast<QCheckBox*>(edit);
+		bx->setCheckState(index.data(Qt::CheckStateRole).value<Qt::CheckState>());
+		break;
+	}
+	case 2: {
+		QComboBox *bx = static_cast<QComboBox *>(edit);
+		QString v = index.data(Qt::DisplayRole+2).toString();
+		if (!LinksTypeHolder::instance()->typeNames().contains(v)) {
+			v = "?";
+		}
+		bx->setCurrentText(v);
+		break;
+	}
+	default: {
+		return QStyledItemDelegate::setEditorData(edit, index);
+	}
+	}
+}
+
+void NodeEditorDelegate::setModelData(QWidget *edit, QAbstractItemModel *model, const QModelIndex &index) const
+{
+	switch(index.column()) {
+	case 1: {
+		QCheckBox *bx = static_cast<QCheckBox*>(edit);
+		model->setData(index, bx->checkState());
+		break;
+	}
+	case 2: {
+		QComboBox *bx = static_cast<QComboBox *>(edit);
+		QString v = bx->currentText();
+		if (!LinksTypeHolder::instance()->typeNames().contains(v)) {
+			v = "?";
+		}
+		std::cout << "Has set value: " << v.toStdString() << std::endl;
+		model->setData(index, v);
+		break;
+	}
+	default: {
+		return QStyledItemDelegate::setModelData(edit, model, index);
+	}
+	}
+}
+
+void NodeEditorDelegate::updateEditorGeometry(QWidget *editor,
+										   const QStyleOptionViewItem &option,
+										   const QModelIndex &) const
+{
+	editor->setGeometry(option.rect);
+}
+
+NodeEditor::NodeEditor(NodeItem *src)
+	: QWidget(),
+	  m_list(new QTableWidget(this))
+{
+	m_title = new QLineEdit(storage->title, this);
+	m_type = new QLineEdit(storage->type, this);
+	m_list->setItemDelegate(new NodeEditorDelegate(m_list));
+
+	m_list->setAlternatingRowColors(true);
+	m_list->setColumnCount(3);
+	m_list->model()->setHeaderData(0, Qt::Horizontal, "", Qt::ItemDataRole::DisplayRole);
+	m_list->model()->setHeaderData(1, Qt::Horizontal, "", Qt::ItemDataRole::EditRole);
+	m_list->model()->setHeaderData(2, Qt::Horizontal, "", Qt::ItemDataRole::EditRole);
+
+	m_list->setHorizontalHeaderLabels({tr("Name"), tr("Input"), tr("Type")});
+
+	Relayer::instance()->disable();
+	m_target = src;
+	QVBoxLayout *mainLayout = new QVBoxLayout(this);
+
+	QVBoxLayout *titleLayout = new QVBoxLayout;
+	QVBoxLayout *typeLayout = new QVBoxLayout;
+	QHBoxLayout *bottomLayout = new QHBoxLayout;
+	QLabel *title = new QLabel(tr("Title: "), this);
+	QLabel *type = new QLabel(tr("Type: "), this);
+	QPushButton *btn = new QPushButton(tr("Ok"), this);
+	QPushButton *add = new QPushButton(tr("Add"), this);
+	QPushButton *rm = new QPushButton(tr("Remove"), this);
+
+	titleLayout->addWidget(title);
+	titleLayout->addWidget(m_title);
+	typeLayout->addWidget(type);
+	typeLayout->addWidget(m_type);
+	bottomLayout->addWidget(rm);
+	bottomLayout->addItem(new QSpacerItem(0, 0, QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Minimum));
+	bottomLayout->addWidget(add);
+
+	mainLayout->addLayout(titleLayout);
+	mainLayout->addLayout(typeLayout);
+	mainLayout->addWidget(m_list);
+	mainLayout->addLayout(bottomLayout);
+	mainLayout->addWidget(btn);
+
+	setLayout(mainLayout);
+	setWindowModality(Qt::WindowModality::ApplicationModal);
+	setWindowFlags(Qt::Tool | Qt::Dialog);
+
+	connect(btn, &QPushButton::clicked, this, &NodeEditor::applyChanges);
+	connect(add, &QPushButton::clicked, this, [this]() {
+		m_list->model()->insertRow(m_list->model()->rowCount());
+		int r = m_list->model()->rowCount()-1;
+
+		QTableWidgetItem *a = new QTableWidgetItem;
+		QTableWidgetItem *b = new QTableWidgetItem;
+		QTableWidgetItem *c = new QTableWidgetItem;
+
+		a->setText(tr("Empty"));
+		b->setFlags(b->flags() | Qt::ItemIsEditable | Qt::ItemIsUserCheckable);
+		b->setCheckState(Qt::CheckState::Unchecked);
+		c->setText("?");
+
+		m_list->setItem(r, 0, a);
+		m_list->setItem(r, 1, b);
+		m_list->setItem(r, 2, c);
+	});
+	connect(rm, &QPushButton::clicked, this, [this]() {
+		m_list->clear();
+	});
+
+	if (m_target) {
+		m_title->setText(src->title());
+		m_type->setText(src->textType());
+
+		QList<PortItem *> l = src->ports();
+		for (auto e : l) {
+			m_list->model()->insertRow(m_list->model()->rowCount());
+			int r = m_list->model()->rowCount()-1;
+			QTableWidgetItem *a = new QTableWidgetItem;
+			QTableWidgetItem *b = new QTableWidgetItem;
+			QTableWidgetItem *c = new QTableWidgetItem;
+
+			a->setText(e->name());
+			b->setFlags(b->flags() | Qt::ItemIsEditable | Qt::ItemIsUserCheckable);
+			b->setCheckState(e->isOutput() ? Qt::CheckState::Unchecked : Qt::CheckState::Checked);
+			c->setText(e->lnType().type->name);
+
+			m_list->setItem(r, 0, a);
+			m_list->setItem(r, 1, b);
+			m_list->setItem(r, 2, c);
+		}
+	}
+
+	m_title->setFocus();
+	show();
+}
+
+void NodeEditor::applyChanges()
+{
+	if (!m_target) {
+		m_target = new NodeItem;
+	}
+    m_target->setTitle(m_title->text());
+    m_target->setTextType(m_type->text());
+
+	QList<PortItem *> l = m_target->ports();
+
+	int i = 0;
+	int len = m_list->rowCount();
+
+	//Remove all ports first or it might cause a UI bug.
+	while(!m_target->ports().isEmpty()) {
+		m_target->removePort(m_target->ports()[0]);
+	}
+
+	while (i<len) {
+		std::cout << "Input name: " << m_list->model()->data(m_list->model()->index(i, 2)).toString().toStdString() << std::endl;
+		LinksTypeHolder::instance();
+		std::cout << "Continuing" << std::endl;
+
+		if (LinksTypeHolder::instance()->getByName(m_list->model()->data(m_list->model()->index(i, 2)).toString()).valid) {
+			std::cout << "Returned instance is valid" << std::endl;
+		} else {
+			std::cout << "Returned instance is invalid" << std::endl;
+		}
+
+		std::cout << "Output name: " << LinksTypeHolder::instance()->getByName(m_list->model()->data(m_list->model()->index(i, 2)).toString()).type->name.toStdString() << std::endl;
+
+		m_target->addPorts(m_list->model()->data(m_list->model()->index(i, 0)).toString(),
+						   (m_list->model()->data(m_list->model()->index(i, 1), Qt::CheckStateRole).value<Qt::CheckState>() == Qt::CheckState::Unchecked),
+						   LinksTypeHolder::instance()->getByName(m_list->model()->data(m_list->model()->index(i, 2)).toString()));
+        i++;
     }
 
-    if (e->type() == QEvent::Type::GraphicsSceneMousePress) {
-        QGraphicsSceneMouseEvent *event = dynamic_cast<QGraphicsSceneMouseEvent *>(e);
-        if (event != nullptr) {
-            if (event->button() == Qt::LeftButton) {
-                QGraphicsItem *item = itemAt(event->scenePos());
+    m_target->build();
+	Q_EMIT returned(m_target);
+    storage->type = m_type->text();
+	storage->title = m_title->text();
+	this->close();
+}
 
-                if (isinstance<PortItem>(item)) {
-                    m_connection = new ConnectionItem;
-                    m_scene->addItem(m_connection);
-                    m_port = dynamic_cast<PortItem *>(item);
-
-                    m_connection->setStartPos(item->scenePos());
-                    m_connection->setEndPos(event->scenePos());
-                    m_connection->updatePath();
-                    return true;
-
-                } else if (isinstance<ConnectionItem>(item)) {
-                    ConnectionItem *it = dynamic_cast<ConnectionItem *>(item);
-                    m_connection = new ConnectionItem;
-                    m_connection->setStartPos(it->startPos());
-                    m_scene->addItem(m_connection);
-                    m_port = it->startPort();
-                    m_connection->setEndPos(event->scenePos());
-                    m_connection->updateStartEndPos();
-                    return true;
-
-                } else if (isinstance<NodeItem>(item)) {
-                    if (m_lastSelected != nullptr) {
-                        m_lastSelected->selectConnections(false);
-                    }
-                    m_lastSelected = dynamic_cast<NodeItem *>(item);
-                    m_lastSelected->selectConnections(true);
-
-                } else {
-                    if (m_lastSelected != nullptr) {
-                        m_lastSelected->selectConnections(false);
-                    }
-                    m_lastSelected = nullptr;
-                }
-
-            } else if (event->button() == Qt::RightButton) {
-                //Context menu
-            }
-        }
-    } else if (e->type() == QEvent::KeyPress) {
-        if (static_cast<QKeyEvent *>(e)->key() == Qt::Key_Delete) {
-            Q_FOREACH(QGraphicsItem *item, m_scene->selectedItems()) {
-                if (isinstance<ConnectionItem>(item)) {
-                    dynamic_cast<ConnectionItem *>(item)->remove();
-                 } else if (isinstance<NodeItem>(item)) {
-                    dynamic_cast<NodeItem *>(item)->remove();
-                }
-            }
-            return true;
-        }
-
-    } else if (e->type() == QEvent::GraphicsSceneMouseMove) {
-        if (m_connection != nullptr) {
-            m_connection->setEndPos(dynamic_cast<QGraphicsSceneMouseEvent *>(e)->scenePos());
-            m_connection->updatePath();
-            return true;
-        }
-
-    } else if (e->type() == QEvent::GraphicsSceneMouseRelease) {
-        QGraphicsSceneMouseEvent *event = dynamic_cast<QGraphicsSceneMouseEvent *>(e);
-
-        if (m_connection != nullptr && event->button() == Qt::LeftButton) {
-            QGraphicsItem *item = itemAt(event->scenePos());
-
-            //Connect to the target port
-            if (isinstance<PortItem>(item)) {
-                PortItem *it = dynamic_cast<PortItem *>(item);
-
-                //Check there's no more than one connection or anything else
-                if (m_port->canConnectTo(it)) {
-                    if (it->isConnected()) {
-                        it->connection()->remove();
-                        it->setConnection(nullptr);
-                    }
-
-                    m_port->clearConnection();
-                    it->clearConnection();
-                    m_connection->setStartPort(m_port);
-                    m_connection->setEndPort(it);
-                    m_connection->updateStartEndPos();
-                    m_connection = nullptr;
-                } else {
-                    m_connection->remove();
-                    m_connection = nullptr;
-                }
-            }
-
-            if (m_connection != nullptr) {
-                m_connection->remove();
-            }
-            m_connection = nullptr;
-            m_port = nullptr;
-            return true;
-        }
-    }
-    return QObject::eventFilter(watched, e);
+void NodeEditor::closeEvent(QCloseEvent *e)
+{
+	Relayer::instance()->enable();
+	QWidget::closeEvent(e);
+	deleteLater();
 }

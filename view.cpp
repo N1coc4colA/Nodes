@@ -2,7 +2,9 @@
 
 #include "helpers.h"
 #include "nodeitem.h"
-#include "singlenodeedits.h"
+#include "nodeeditor.h"
+
+#include "relayer.h"
 
 #include <QMenu>
 #include <QBrush>
@@ -33,15 +35,26 @@ View::View(QWidget *parent) :
 
 void View::contextMenuEvent(QContextMenuEvent *e)
 {
-    QPoint pos = mapFromGlobal(e->pos());
-    QGraphicsItem *it = itemAt(pos);
-    if (it != nullptr && isinstance<NodeItem>(it)) {
-        QMenu *menu = new QMenu;
-        QAction *hi = menu->addAction(tr("Editer"));
-        QAction *act = menu->exec(mapToGlobal(pos));
-        if (act == hi) {
-        }
-    }
+	QGraphicsItem *it = itemAt(e->pos());
+	QMenu *menu = new QMenu;
+
+	if (it != nullptr && isinstance<NodeItem>(it)) {
+		QAction *edit = menu->addAction(tr("Edit"));
+		QAction *suppr = menu->addAction(tr("Remove"));
+		QAction *act = menu->exec(mapToGlobal(e->pos()));
+		if (act == edit) {
+			Relayer::instance()->editNode(dynamic_cast<NodeItem *>(it));
+		} else if (act == suppr) {
+			Relayer::instance()->rmElement();
+		}
+	} else {
+		QAction *add = menu->addAction(tr("New"));
+		QAction *act = menu->exec(mapToGlobal(e->pos()));
+		if (act == add) {
+			Relayer::instance()->addNode();
+		}
+	}
+	delete menu;
 }
 
 void View::requestScaling(double v)
@@ -61,24 +74,27 @@ void View::wheelEvent(QWheelEvent *e)
     if (ctrlHold == false) {
         QGraphicsView::wheelEvent(e);
     } else {
-        if(e->delta() > 0) {
-            if (currentScale < 20) {
-                scale(1.25, 1.25);
-                currentScale *= 1.25;
-                Q_EMIT scaled(currentScale);
+		if(e->angleDelta().y() > 0 || e->angleDelta().x() > 0) {
+			if (currentScale < 20) {
+				scale(1.1, 1.1);
+				ensureVisibility();
+				currentScale *= 1.1;
+				Relayer::instance()->dispScaled(currentScale);
             } else if (currentScale != 20.0) {
                 double v = currentScale/20;
                 if ((v*currentScale) <= 20) {
                     scale(v, v);
+					ensureVisibility();
                     currentScale *= v;
-                    Q_EMIT scaled(currentScale);
+					Relayer::instance()->dispScaled(currentScale);
                 }
             }
         } else {
-            if ((currentScale * 0.8) >= 0.01) {
-                scale(0.8, 0.8);
-                currentScale *= 0.8;
-                Q_EMIT scaled(currentScale);
+			if ((currentScale * 0.9) >= 0.01) {
+				scale(0.9, 0.9);
+				ensureVisibility();
+				currentScale *= 0.9;
+				Relayer::instance()->dispScaled(currentScale);
             }
         }
     }
@@ -100,22 +116,24 @@ void View::dropEvent(QDropEvent *e)
 
 void View::keyPressEvent(QKeyEvent *e)
 {
-    if (e->modifiers() == Qt::CTRL) {
+	if (e->key() == Qt::Key::Key_Control) {
         if (!ctrlHold) {
             ctrlHold = true;
         }
+		e->accept();
     }
-    QGraphicsView::keyPressEvent(e);
+	return QGraphicsView::keyPressEvent(e);
 }
 
 void View::keyReleaseEvent(QKeyEvent *e)
 {
-    if (e->modifiers() != Qt::CTRL) {
+	if (e->key() == Qt::Key::Key_Control) {
         if (ctrlHold) {
             ctrlHold = false;
         }
+		e->accept();
     }
-    QGraphicsView::keyReleaseEvent(e);
+	return QGraphicsView::keyReleaseEvent(e);
 }
 
 void View::mousePressEvent(QMouseEvent *e)
@@ -202,4 +220,14 @@ void View::drawBackground(QPainter *p, const QRectF &rect)
     p->drawLines(lines);
 
     return QGraphicsView::drawBackground(p, rect);
+}
+
+void View::ensureVisibility()
+{
+	QPoint p = mapFromGlobal(QCursor::pos());
+	if ((p.x() < width() && p.x() > -1) && (p.y() < height() && p.y() > -1)) {
+		QRect r(p.x() - width()/2, p.y() - height()/2, width()/2, height()/2);
+		QPointF t = mapToScene(r.topLeft()), b = mapToScene(r.bottomRight());
+		ensureVisible(QRectF(t, b));
+	}
 }

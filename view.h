@@ -13,11 +13,11 @@ public:
     explicit View(QWidget *parent = nullptr);
 
 Q_SIGNALS:
-    void requestNode(QString str);
-    void scaled(double v);
+	void requestNode(QString str);
 
 public Q_SLOTS:
     void requestScaling(double scaling);
+	void ensureVisibility();
 
 protected:
     void wheelEvent(QWheelEvent *e) override;
@@ -29,7 +29,7 @@ protected:
     void mouseReleaseEvent(QMouseEvent *e) override;
     void drawBackground(QPainter *p, const QRectF &r) override;
     void keyPressEvent(QKeyEvent *e) override;
-    void keyReleaseEvent(QKeyEvent *e) override;
+	void keyReleaseEvent(QKeyEvent *e) override;
 
 private:
     QColor bg = QColor(220, 220, 220);

@@ -1,8 +1,10 @@
 #include "nodewidget.h"
 
-#include "nodeeditor.h"
+#include "nodeconnector.h"
 #include "view.h"
 #include "nodeitem.h"
+
+#include "relayer.h"
 
 #include <QVBoxLayout>
 #include <QCoreApplication>
@@ -70,7 +72,7 @@ NodeWidget::NodeWidget(QWidget *p) : QWidget(p)
     mainLayout->setContentsMargins(0, 0, 0, 0);
     setLayout(mainLayout);
 
-    m_nodeEditor = new NodeEditor(this);
+	m_nodeEditor = new NodeConnector(this);
     m_nodeScene = new NodeScene(this);
     m_view = new View(this);
     m_nodeScene->view = m_view;
@@ -79,8 +81,8 @@ NodeWidget::NodeWidget(QWidget *p) : QWidget(p)
 
     mainLayout->addWidget(m_view);
 
-    connect(m_view, &View::requestNode, this, &NodeWidget::createNode);
-    connect(m_view, &View::scaled, this, &NodeWidget::scaled);
+	connect(m_view, &View::requestNode, this, &NodeWidget::createNode);
+	connect(Relayer::instance(), &Relayer::reqSetScaling, this, &NodeWidget::requestScaling);
 }
 
 QGraphicsScene *NodeWidget::scene()

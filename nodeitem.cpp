@@ -3,6 +3,8 @@
 #include "helpers.h"
 #include "portitem.h"
 #include "connectionitem.h"
+#include "nodepalette.h"
+#include "relayer.h"
 
 #include <QMenu>
 #include <QPainter>
@@ -10,11 +12,18 @@
 #include <QGraphicsScene>
 #include <QGraphicsSceneContextMenuEvent>
 
+#include <iostream>
+
 NodeItem::NodeItem(QGraphicsItem *parent) : QGraphicsPathItem(parent)
 {
     setFlag(QGraphicsPathItem::ItemIsMovable);
     setFlag(QGraphicsPathItem::ItemIsSelectable);
     m_uid = UIDC::uid();
+
+	QObject::connect(Relayer::instance(), &Relayer::nodePaletteChanged, Relayer::instance(), [this]() {
+		std::cout << "Palette changed" << std::endl;
+		update();
+	});
 }
 
 int NodeItem::UID()
@@ -55,21 +64,20 @@ QList<PortItem *> NodeItem::ports()
 void NodeItem::removePort(PortItem *i)
 {
     m_ports.removeAll(i);
+	scene()->removeItem(i);
 }
 
-PortItem *NodeItem::addPorts(QString name, bool isOutput, int flags, void *ptr)
+PortItem *NodeItem::addPorts(QString name, bool isOutput, LnTypeHolder t, int flags, void *ptr)
 {
     PortItem *port = new PortItem(this);
     port->setIsOutput(isOutput);
     port->setNode(this);
     port->setName(name);
     port->setPortFlags(flags);
-    port->setPtr(ptr);
-    //scene()->addItem(port);
+	port->setPtr(ptr);
+	port->setLnType(t);
+	//port->setParentItem(this);
 
-    /*if (scene() != nullptr) {
-        scene()->addItem(port);
-    }*/
     m_ports << port;
 
     return port;
@@ -116,35 +124,29 @@ void NodeItem::remove()
     this->~NodeItem();
 }
 
-void NodeItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget)
+void NodeItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidget *)
 {
     if (isSelected()) {
         painter->setPen(QPen(QPalette().color(QPalette::ColorGroup::Current, QPalette::ColorRole::Highlight), 2));
-        painter->setBrush(m_nodeColor);
+		painter->setBrush(NodePalette::instance()->getInner());
     } else {
-        painter->setPen(m_nodeColor.lighter());
-        painter->setBrush(m_nodeColor);
+		painter->setPen(NodePalette::instance()->getOutter().lighter());
+		painter->setBrush(NodePalette::instance()->getInner());
     }
-
     painter->drawPath(path());
-    painter->setPen(Qt::NoPen);
-    painter->setBrush(Qt::white);
-    painter->drawPath(m_title_path);
-    painter->drawPath(m_type_path);
-    painter->drawPath(m_misc_path);
 
-    /*int i = 0;
-    while (i<m_ports.length()) {
-        m_ports[i]->paint(painter, option, widget);
-        i++;
-    }*/
+    painter->setPen(Qt::NoPen);
+	painter->setBrush(NodePalette::instance()->getTitle());
+    painter->drawPath(m_title_path);
+
+	painter->setBrush(NodePalette::instance()->getType());
+	painter->drawPath(m_type_path);
 }
 
 void NodeItem::build()
 {
     m_title_path = QPainterPath();
-    m_type_path = QPainterPath();
-    m_misc_path = QPainterPath();
+	m_type_path = QPainterPath();
 
     m_width = 0;
     m_height = 0;
@@ -163,14 +165,14 @@ void NodeItem::build()
     QFontMetrics poM(portFont);
 
     int tiH = tiM.height(), tyH = tyM.height();
-    int tiW = tiM.width(m_title), tyW = tyM.width("(" + m_type + ")");
+	int tiW = tiM.horizontalAdvance(m_title), tyW = tyM.horizontalAdvance("(" + m_type + ")");
     int totW = ((tiW < tyW) ? tyW : tiW), totH = ((tiH < tyH) ? tyH : tiH);
     int poH = poM.height();
 
     //Add height for each port
     int i = 0;
     while (i<m_ports.length()) {
-        int w = poM.width(m_ports[i]->name());
+		int w = m_ports[i]->boundingRect().width();
 
         if (w > totW) {
             totW = w;
@@ -178,34 +180,52 @@ void NodeItem::build()
         totH += poH;
         i++;
     }
-
     totH+=poH;
 
     totH += m_vertMargin;
     totW += m_horMargin;
-
-    p.addRoundRect(-totW/2, -totH/2, totW, totH, 5, 5);
+	p.addRoundedRect(0, 0, totW, totH, 5, 5, Qt::AbsoluteSize);
 
     internal_width = totW;
     internal_height = totH;
 
-    m_title_path.addText(-tiW/2, (-totH/2) + tiH, titleFont, m_title);
-    m_type_path.addText(-tyW/2, (-totH/2)+tiH+tyH, typeFont, "(" + m_type + ")");
+	m_title_path.addText((totW - tiW)/2, m_vertMargin/2 + (tiH/3*2), titleFont, m_title);
+	m_type_path.addText((totW - tyW)/2, (m_vertMargin/2)+tiH+10, typeFont, "(" + m_type + ")");
 
-    int y = (-totH/2)+tiH+tyH+poH;
+
+	/*
+	 * lA = 8 (inner) + 2 (borders) + 1 (dot):
+	 * [--------]o
+	 *
+	 * lB = 15 (innerB) + 6 (marginB) + 2 (bordersB):
+	 * [***---------------***]
+	 *
+	 * Align on right side:
+	 * XA = lB - lA + marginB/2 + XB
+	 *
+	 * Align on left side:
+	 * XA = marginB/2 + XB
+	 *
+	 */
+
+	int y = (m_vertMargin/2)+tiH+10+tyH;
     i = 0;
     while (i<m_ports.length()) {
-        if (m_ports[i]->isOutput()) {
-            m_ports[i]->setPos(totW/2+10, y);
+		if (m_ports[i]->isOutput()) {
+			qreal pad = totW - m_ports[i]->boundingRect().width() - m_horMargin/2;
+
+			if (m_ports[i]->pos().x() != pad) {
+				m_ports[i]->setPos(pad, y);
+			}
         } else {
-            m_ports[i]->setPos(-totW/2+10, y);
+			m_ports[i]->setPos(m_horMargin/2, y);
         }
-        y += poH;
+		y += poH;
         i++;
     }
 
     m_width = totW;
-    m_height = totH;
+	m_height = totH;
 
     setPath(p);
 }
@@ -228,10 +248,11 @@ void NodeItem::contextMenuEvent(QGraphicsSceneContextMenuEvent *event)
     QAction *act = menu.exec(menu.mapToGlobal(QPoint(event->pos().x(), event->pos().y())));
 
     if (act == del) {
-    }
+		Relayer::instance()->rmElement();
+	} else if (act == edit) {
+		Relayer::instance()->editNode(this);
+	}
 }
-
-#include <iostream>
 
 QVariant NodeItem::itemChange(QGraphicsItem::GraphicsItemChange change, const QVariant &value)
 {

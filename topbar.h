@@ -10,13 +10,7 @@ class TopBar : public QWidget
 public:
     explicit TopBar(QWidget *parent = nullptr);
     QString author();
-    void setAuthor(QString name);
-
-Q_SIGNALS:
-    void runSave();
-    void runLoad();
-    void generateNode();
-    void setScaling(double scale);
+	void setAuthor(QString name);
 
 public Q_SLOTS:
     void updateScaling(double scale);

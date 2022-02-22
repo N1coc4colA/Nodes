@@ -9,6 +9,10 @@ inline bool isinstance(void *x)
     return ((x != nullptr) ? (dynamic_cast<T *>((QGraphicsItem *)x) != nullptr) : false);
 }
 
+void centerWidget(QWidget *p, QWidget *t);
+
+void printTrace();
+
 class UIDC {
 public:
     static UIDC *instance();
