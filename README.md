@@ -8,10 +8,25 @@ The basis of making this was to use it to describe in-app APIs for beginners tha
 I was looking for already done apps that was with a "node" system, or diagram. I finally found: https://github.com/bhowiebkr/logic-node-editor
 I translated the code to C++, and added features.
 
+## Features
+| Feature        | State       |
+|----------------|-------------|
+| Nodes          | Implemented |
+| Connections    | Implemented |
+| Ports of types | Implemented |
+| Connections colors | Implemented |
+| Saving nodes | Implemented |
+| Save connections | Implemented |
+| Saving extra data | Implemented |
+| Node theming | Working |
+| Saving types | Working |
+| Node theme editor | Working |
+
 ## Which dependencies?
 ```
 Qt Core
 Qt Widget
+Qt OpenGL
 ```
 
 ## How to compile the app?
@@ -21,10 +36,6 @@ $ qmake
 $ make
 ```
 In the source directory is enough.
-
-### Can not compile :/
-There's an already built binary for GNU/Linux with Qt 5.11.x &+, the file "diagramscene".
-For any other OS, you'll have to do it yourself :)
 
 ## How to use it?
 There's a little bar at the bottom of the window. I let you use the small number of features it has. A hidden option is to set the ports (points in nodes) on the left or right, you can check or uncheck it. To connect two ports, just do like DnD. Ctrl+Scroll is used to zoom in/out as the bottom spinner can be used too.
