@@ -3,5 +3,6 @@
         <file>folder-open</file>
         <file>save</file>
         <file>plus</file>
+        <file>l-list</file>
     </qresource>
 </RCC>
