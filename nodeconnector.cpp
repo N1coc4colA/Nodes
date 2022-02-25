@@ -6,6 +6,7 @@
 #include "nodeitem.h"
 #include "relayer.h"
 #include "linkstype.h"
+#include "sharedinstances.h"
 
 #include <QEvent>
 #include <QKeyEvent>
@@ -13,11 +14,10 @@
 #include <QMetaObject>
 #include <QGraphicsSceneMouseEvent>
 
-#include <iostream>
 
 NodeConnector::NodeConnector(QObject *parent) : QObject(parent)
 {
-	connect(Relayer::instance(), &Relayer::reqRmElement, this, &NodeConnector::handleNodesDeletion);
+	connect(SharedInstances::instance()->relayer(), &Relayer::reqRmElement, this, &NodeConnector::handleNodesDeletion);
 }
 
 void NodeConnector::install(QGraphicsScene *scene)
@@ -108,13 +108,12 @@ bool NodeConnector::eventFilter(QObject *watched, QEvent *e)
 				PortItem *it = dynamic_cast<PortItem *>(item);
 				if (m_port == it ||
 						!m_port->canConnectTo(it) ||
-						!((m_port->isOutput()) ? LinksTypeHolder::instance()->doesSInheritsE(m_port->lnType().type->uid, it->lnType().type->uid)
-											  : LinksTypeHolder::instance()->doesSInheritsE(it->lnType().type->uid, m_port->lnType().type->uid))) {
+						!((m_port->isOutput()) ? SharedInstances::instance()->typesHolder()->doesSInheritsE(m_port->lnType().type->uid, it->lnType().type->uid)
+											  : SharedInstances::instance()->typesHolder()->doesSInheritsE(it->lnType().type->uid, m_port->lnType().type->uid))) {
 					m_connection->setWarned(true);
 				} else {
 					m_connection->setWarned(false);
 				}
-				std::cout << "Trying to connect both: " << m_port->lnType().type->name.toStdString() << " and " << it->lnType().type->name.toStdString() << std::endl;
 			} else {
 				m_connection->setWarned(false);
 			}
@@ -136,8 +135,8 @@ bool NodeConnector::eventFilter(QObject *watched, QEvent *e)
 				//Moreover to check if it can be connected, check the inheritance.
 				if (m_port != it && m_port->lnType() != it->lnType() &&
 						m_port->canConnectTo(it) &&
-						((m_port->isOutput()) ? LinksTypeHolder::instance()->doesSInheritsE(m_port->lnType().type->uid, it->lnType().type->uid)
-											  : LinksTypeHolder::instance()->doesSInheritsE(it->lnType().type->uid, m_port->lnType().type->uid))) {
+						((m_port->isOutput()) ? SharedInstances::instance()->typesHolder()->doesSInheritsE(m_port->lnType().type->uid, it->lnType().type->uid)
+											  : SharedInstances::instance()->typesHolder()->doesSInheritsE(it->lnType().type->uid, m_port->lnType().type->uid))) {
                     if (it->isConnected()) {
                         it->connection()->remove();
                         it->setConnection(nullptr);
@@ -155,7 +154,6 @@ bool NodeConnector::eventFilter(QObject *watched, QEvent *e)
                     m_connection->updateStartEndPos();
                     m_connection = nullptr;
 				} else {
-					std::cout << "Ports are not compatible!" << std::endl;
                     m_connection->remove();
                     m_connection = nullptr;
                 }

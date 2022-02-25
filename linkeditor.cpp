@@ -3,6 +3,7 @@
 #include "linkstype.h"
 #include "relayer.h"
 #include "helpers.h"
+#include "sharedinstances.h"
 
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -10,11 +11,12 @@
 #include <QPushButton>
 #include <QLabel>
 
+
 LinkNameValidator::LinkNameValidator(bool v, QObject *p) : QValidator(p), inv(v) {}
 
 QValidator::State LinkNameValidator::validate(QString &inp, int &) const
 {
-	return (LinksTypeHolder::instance()->typeNames().contains(inp)
+	return (SharedInstances::instance()->typesHolder()->typeNames().contains(inp)
 				? (inv
 					? QValidator::State::Invalid
 					: QValidator::State::Acceptable)
@@ -23,34 +25,6 @@ QValidator::State LinkNameValidator::validate(QString &inp, int &) const
 					: QValidator::State::Intermediate));
 }
 
-
-ColorPicker::ColorPicker(QColor c, QWidget *p)
-	: QPushButton(p), dial(p)
-{
-	setFixedSize(50, 30);
-	connect(this, &ColorPicker::clicked, &dial, &QColorDialog::exec);
-	connect(&dial, &QColorDialog::colorSelected, this, &ColorPicker::setupColor);
-	setColor(c);
-}
-
-ColorPicker::~ColorPicker() {}
-
-void ColorPicker::setColor(QColor c)
-{
-	dial.setCurrentColor(c);
-	setupColor(c);
-}
-
-void ColorPicker::setupColor(QColor c)
-{
-	setStyleSheet("background-color: " + c.name() + ";");
-	Q_EMIT colorChanged(c);
-}
-
-QColor ColorPicker::color()
-{
-	return dial.currentColor();
-}
 
 LinkEditor::LinkEditor(QWidget *parent)
 	: QWidget(parent), c_name_vtor(true, this), i_name_vtor(false, this), list(this), name(this), hold(nullptr, this), picker(Qt::green, this), editMode(false)
@@ -87,7 +61,7 @@ LinkEditor::LinkEditor(QWidget *parent)
 	connect(add, &QPushButton::clicked, this, &LinkEditor::addToInherits);
 	connect(&inh, &QLineEdit::returnPressed, this, &LinkEditor::addToInherits);
 	connect(ok, &QPushButton::clicked, this, &LinkEditor::generateLink);
-	connect(Relayer::instance(), &Relayer::reqLnEditor, this, [this](QWidget *p) {
+	connect(SharedInstances::instance()->relayer(), &Relayer::reqLnEditor, this, [this](QWidget *p) {
 		cleanup();
 		old = p;
 		centerWidget(old, this);
@@ -95,7 +69,7 @@ LinkEditor::LinkEditor(QWidget *parent)
 		editMode = false;
 		picker.setColor(Qt::gray);
 	});
-	connect(Relayer::instance(), &Relayer::reqLnEditorFrom, this, [this](QWidget *p, LnTypeHolder h) {
+	connect(SharedInstances::instance()->relayer(), &Relayer::reqLnEditorFrom, this, [this](QWidget *p, LnTypeHolder h) {
 		cleanup();
 		old = p;
 		centerWidget(old, this);
@@ -105,7 +79,7 @@ LinkEditor::LinkEditor(QWidget *parent)
 			int i = 0;
 			while (i < h.type->inherits.length()) {
 				QListWidgetItem *it = new QListWidgetItem(&list);
-				it->setText(LinksTypeHolder::instance()->getByUID(h.type->inherits[i]).type->name);
+				it->setText(SharedInstances::instance()->typesHolder()->getByUID(h.type->inherits[i]).type->name);
 				list.addItem(it);
 				i++;
 			}
@@ -160,7 +134,7 @@ void LinkEditor::generateLink()
 	int i = 0;
 	while (i < list.count()) {
 		QString p = list.item(i)->text();
-		LnTypeHolder hold = LinksTypeHolder::instance()->getByName(p);
+		LnTypeHolder hold = SharedInstances::instance()->typesHolder()->getByName(p);
 		if (hold.valid) {
 			nt << hold.type->uid;
 		}
@@ -181,7 +155,7 @@ void LinkEditor::generateLink()
 	QString n = name.text();
 	int p = 0;
 	if (c_name_vtor.validate(n, p) == QValidator::State::Acceptable) {
-		LinksTypeHolder::instance()->addType(n, nt, picker.color());
+		SharedInstances::instance()->typesHolder()->addType(n, nt, picker.color());
 		close();
 	}
 }

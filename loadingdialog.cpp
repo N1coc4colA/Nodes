@@ -5,6 +5,7 @@
 #include <QLabel>
 #include <QProgressBar>
 
+
 LoadingDialog::LoadingDialog(NodesOpener *opener)
 {
     QVBoxLayout *lay = new QVBoxLayout;

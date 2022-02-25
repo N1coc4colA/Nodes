@@ -1,6 +1,8 @@
 #ifndef LINKSTYPE_H
 #define LINKSTYPE_H
 
+#include "operationalmutex.h"
+
 #include <QObject>
 #include <QMap>
 #include <QColor>
@@ -76,10 +78,6 @@ class LinksTypeHolder
 {
 public:
 	explicit LinksTypeHolder();
-	inline static LinksTypeHolder *instance() {
-		static LinksTypeHolder *inst = new LinksTypeHolder;
-		return inst;
-	}
 
 	QMap<int, int> uidMapped;
 	QMap<QString, int> stringMapped;
@@ -97,6 +95,9 @@ public:
 	bool doesSInheritsE(int e, int s);
 
 	void cleanup();
+
+private:
+	OperationalMutex mtx;
 };
 
 #endif // LINKSTYPE_H

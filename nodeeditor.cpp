@@ -4,6 +4,7 @@
 #include "portitem.h"
 #include "linkstype.h"
 #include "relayer.h"
+#include "sharedinstances.h"
 
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -16,7 +17,6 @@
 #include <QComboBox>
 #include <QCheckBox>
 
-#include <iostream>
 
 NodeEditorDelegate::NodeEditorDelegate(QObject *p) : QStyledItemDelegate(p)
 {
@@ -31,7 +31,7 @@ QWidget *NodeEditorDelegate::createEditor(QWidget *p, const QStyleOptionViewItem
 	}
 	case 2: {
 		QComboBox *bx = new QComboBox(p);
-		bx->addItems(LinksTypeHolder::instance()->typeNames());
+		bx->addItems(SharedInstances::instance()->typesHolder()->typeNames());
 		return bx;
 	}
 	default: {
@@ -51,7 +51,7 @@ void NodeEditorDelegate::setEditorData(QWidget *edit, const QModelIndex &index) 
 	case 2: {
 		QComboBox *bx = static_cast<QComboBox *>(edit);
 		QString v = index.data(Qt::DisplayRole+2).toString();
-		if (!LinksTypeHolder::instance()->typeNames().contains(v)) {
+		if (!SharedInstances::instance()->typesHolder()->typeNames().contains(v)) {
 			v = "?";
 		}
 		bx->setCurrentText(v);
@@ -74,10 +74,9 @@ void NodeEditorDelegate::setModelData(QWidget *edit, QAbstractItemModel *model, 
 	case 2: {
 		QComboBox *bx = static_cast<QComboBox *>(edit);
 		QString v = bx->currentText();
-		if (!LinksTypeHolder::instance()->typeNames().contains(v)) {
+		if (!SharedInstances::instance()->typesHolder()->typeNames().contains(v)) {
 			v = "?";
 		}
-		std::cout << "Has set value: " << v.toStdString() << std::endl;
 		model->setData(index, v);
 		break;
 	}
@@ -110,7 +109,7 @@ NodeEditor::NodeEditor(NodeItem *src)
 
 	m_list->setHorizontalHeaderLabels({tr("Name"), tr("Input"), tr("Type")});
 
-	Relayer::instance()->disable();
+	SharedInstances::instance()->relayer()->disable();
 	m_target = src;
 	QVBoxLayout *mainLayout = new QVBoxLayout(this);
 
@@ -209,21 +208,9 @@ void NodeEditor::applyChanges()
 	}
 
 	while (i<len) {
-		std::cout << "Input name: " << m_list->model()->data(m_list->model()->index(i, 2)).toString().toStdString() << std::endl;
-		LinksTypeHolder::instance();
-		std::cout << "Continuing" << std::endl;
-
-		if (LinksTypeHolder::instance()->getByName(m_list->model()->data(m_list->model()->index(i, 2)).toString()).valid) {
-			std::cout << "Returned instance is valid" << std::endl;
-		} else {
-			std::cout << "Returned instance is invalid" << std::endl;
-		}
-
-		std::cout << "Output name: " << LinksTypeHolder::instance()->getByName(m_list->model()->data(m_list->model()->index(i, 2)).toString()).type->name.toStdString() << std::endl;
-
 		m_target->addPorts(m_list->model()->data(m_list->model()->index(i, 0)).toString(),
 						   (m_list->model()->data(m_list->model()->index(i, 1), Qt::CheckStateRole).value<Qt::CheckState>() == Qt::CheckState::Unchecked),
-						   LinksTypeHolder::instance()->getByName(m_list->model()->data(m_list->model()->index(i, 2)).toString()));
+						   SharedInstances::instance()->typesHolder()->getByName(m_list->model()->data(m_list->model()->index(i, 2)).toString()));
         i++;
     }
 
@@ -236,7 +223,7 @@ void NodeEditor::applyChanges()
 
 void NodeEditor::closeEvent(QCloseEvent *e)
 {
-	Relayer::instance()->enable();
+	SharedInstances::instance()->relayer()->enable();
 	QWidget::closeEvent(e);
 	deleteLater();
 }

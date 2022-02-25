@@ -4,10 +4,14 @@
 #include "linkeditor.h"
 #include "relayer.h"
 #include "helpers.h"
+#include "sharedinstances.h"
 
 #include <QHBoxLayout>
 #include <QSpacerItem>
 #include <QPushButton>
+
+#include <QEvent>
+
 
 void cleanup(QListWidget *w)
 {
@@ -42,8 +46,8 @@ LinksViewer::LinksViewer(QWidget *parent)
 	setWindowModality(Qt::WindowModality::ApplicationModal);
 	hide();
 
-	connect(Relayer::instance(), &Relayer::reqLinksList, this, &LinksViewer::handleShow);
-	connect(Relayer::instance(), &Relayer::reqLinksListUpd, this, &LinksViewer::handleLinksUpdate);
+	connect(SharedInstances::instance()->relayer(), &Relayer::reqLinksList, this, &LinksViewer::handleShow);
+	connect(SharedInstances::instance()->relayer(), &Relayer::reqLinksListUpd, this, &LinksViewer::handleLinksUpdate);
 	connect(&availableList, &QListWidget::doubleClicked, this, [this](const QModelIndex &index) {
 		viewInheritanceOf(availableList.model()->data(index).toString());
 	});
@@ -57,10 +61,10 @@ LinksViewer::LinksViewer(QWidget *parent)
 		}
 	});
 	connect(add, &QPushButton::clicked, this, [this]() {
-		Relayer::instance()->linkEditor(this);
+		SharedInstances::instance()->relayer()->linkEditor(this);
 	});
-	connect(edit, &QPushButton::clicked, Relayer::instance(), [this]() {
-		Relayer::instance()->linkEditorFrom(this, LinksTypeHolder::instance()->getByName(availableList.currentItem()->text()));
+	connect(edit, &QPushButton::clicked, SharedInstances::instance()->relayer(), [this]() {
+		SharedInstances::instance()->relayer()->linkEditorFrom(this, SharedInstances::instance()->typesHolder()->getByName(availableList.currentItem()->text()));
 	});
 }
 
@@ -71,7 +75,7 @@ LinksViewer::~LinksViewer()
 
 void LinksViewer::handleShow()
 {
-	Relayer::instance()->disable();
+	SharedInstances::instance()->relayer()->disable();
 	setEnabled(true);
 	handleLinksUpdate();
 	centerWidget(parentWidget(), this);
@@ -81,7 +85,7 @@ void LinksViewer::handleShow()
 
 void LinksViewer::closeEvent(QCloseEvent *e)
 {
-	Relayer::instance()->enable();
+	SharedInstances::instance()->relayer()->enable();
 	return QWidget::closeEvent(e);
 }
 
@@ -95,7 +99,7 @@ void LinksViewer::handleLinksUpdate()
 	availableList.clear();
 	inheritsList.clear();
 
-	for (auto t : LinksTypeHolder::instance()->types) {
+	for (auto t : SharedInstances::instance()->typesHolder()->types) {
 		QListWidgetItem *it = new QListWidgetItem(&availableList);
 		it->setText(t.type->name);
 		availableList.addItem(it);
@@ -107,7 +111,7 @@ void LinksViewer::viewInheritanceOf(QString v)
 {
 	cleanup(&inheritsList);
 
-	QList<QString> inherits = LinksTypeHolder::instance()->resolveInherits(v);
+	QList<QString> inherits = SharedInstances::instance()->typesHolder()->resolveInherits(v);
 	for (auto s : inherits) {
 		QListWidgetItem *it = new QListWidgetItem(&inheritsList);
 		it->setText(s);

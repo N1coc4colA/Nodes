@@ -2,12 +2,11 @@
 #define LINKEDITOR_H
 
 #include "linkstype.h"
+#include "colorpicker.h"
 
 #include <QListWidget>
 #include <QLineEdit>
 #include <QValidator>
-#include <QColorDialog>
-#include <QPushButton>
 
 class LinkNameValidator : public QValidator
 {
@@ -19,24 +18,6 @@ public:
 
 private:
 	bool inv;
-};
-
-class ColorPicker : public QPushButton
-{
-	Q_OBJECT
-public:
-	explicit ColorPicker(QColor c, QWidget *p = nullptr);
-	~ColorPicker();
-
-	QColor color();
-	void setColor(QColor c);
-	Q_SIGNAL void colorChanged(QColor c);
-
-protected:
-	void setupColor(QColor c);
-
-private:
-	QColorDialog dial;
 };
 
 class LinkEditor : public QWidget

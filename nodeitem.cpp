@@ -5,6 +5,7 @@
 #include "connectionitem.h"
 #include "nodepalette.h"
 #include "relayer.h"
+#include "sharedinstances.h"
 
 #include <QMenu>
 #include <QPainter>
@@ -12,7 +13,6 @@
 #include <QGraphicsScene>
 #include <QGraphicsSceneContextMenuEvent>
 
-#include <iostream>
 
 NodeItem::NodeItem(QGraphicsItem *parent) : QGraphicsPathItem(parent)
 {
@@ -20,8 +20,7 @@ NodeItem::NodeItem(QGraphicsItem *parent) : QGraphicsPathItem(parent)
     setFlag(QGraphicsPathItem::ItemIsSelectable);
     m_uid = UIDC::uid();
 
-	QObject::connect(Relayer::instance(), &Relayer::nodePaletteChanged, Relayer::instance(), [this]() {
-		std::cout << "Palette changed" << std::endl;
+	QObject::connect(SharedInstances::instance()->relayer(), &Relayer::nodePaletteChanged, SharedInstances::instance()->relayer(), [this]() {
 		update();
 	});
 }
@@ -128,18 +127,18 @@ void NodeItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidge
 {
     if (isSelected()) {
         painter->setPen(QPen(QPalette().color(QPalette::ColorGroup::Current, QPalette::ColorRole::Highlight), 2));
-		painter->setBrush(NodePalette::instance()->getInner());
+		painter->setBrush(SharedInstances::instance()->nodePalette()->getInner());
     } else {
-		painter->setPen(NodePalette::instance()->getOutter().lighter());
-		painter->setBrush(NodePalette::instance()->getInner());
+		painter->setPen(SharedInstances::instance()->nodePalette()->getOutter());
+		painter->setBrush(SharedInstances::instance()->nodePalette()->getInner());
     }
     painter->drawPath(path());
 
     painter->setPen(Qt::NoPen);
-	painter->setBrush(NodePalette::instance()->getTitle());
+	painter->setBrush(SharedInstances::instance()->nodePalette()->getTitle());
     painter->drawPath(m_title_path);
 
-	painter->setBrush(NodePalette::instance()->getType());
+	painter->setBrush(SharedInstances::instance()->nodePalette()->getType());
 	painter->drawPath(m_type_path);
 }
 
@@ -248,9 +247,9 @@ void NodeItem::contextMenuEvent(QGraphicsSceneContextMenuEvent *event)
     QAction *act = menu.exec(menu.mapToGlobal(QPoint(event->pos().x(), event->pos().y())));
 
     if (act == del) {
-		Relayer::instance()->rmElement();
+		SharedInstances::instance()->relayer()->rmElement();
 	} else if (act == edit) {
-		Relayer::instance()->editNode(this);
+		SharedInstances::instance()->relayer()->editNode(this);
 	}
 }
 

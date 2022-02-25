@@ -1,6 +1,7 @@
 #include "linkstype.h"
 
 #include "relayer.h"
+#include "sharedinstances.h"
 
 #include <algorithm>
 #include <iostream>
@@ -83,6 +84,8 @@ void LnTypeHolder::release()
 LinksTypeHolder::LinksTypeHolder()
 {
 	addType("?", {}, Qt::black);
+
+	OMLocker lock(&mtx, __func__);
 	uidMapped.first() = 0;
 	stringMapped[types.first().type->name] = 0;
 	types.first().type->uid = 0;
@@ -91,40 +94,39 @@ LinksTypeHolder::LinksTypeHolder()
 void LinksTypeHolder::addType(QString n, QList<int> l, QColor c)
 {
 	LinkType *empty = new LinkType;
+	empty->uid = generateUID();
+
+	OMLocker lock(&mtx, __func__);
 	empty->name = n;
 	empty->inherits = l;
 	empty->color = c;
-	empty->uid = generateUID();
 	types.append(LnTypeHolder(empty));
 	stringMapped[empty->name] = empty->uid;
 	uidMapped[empty->uid] = types.indexOf(LnTypeHolder(empty));
 
-	Relayer::instance()->updateLinksList();
+	lock.stop();
+
+	SharedInstances::instance()->relayer()->updateLinksList();
 }
 
 LnTypeHolder LinksTypeHolder::getByName(QString name)
 {
-	std::cout << "Getting by name" << std::endl;
+	OMOperator op(&mtx, __func__);
 	int i = 0;
 	for (auto t : types) {
-		std::cout << "Looking at: " << i << std::endl;
 		if (t.valid) {
-			std::cout << t.type->name.toStdString() << std::endl;
 			if (t.type->name == name) {
-				std::cout << "Found required type" << std::endl;
 				return types[i];
 			}
-		} else {
-			std::cout << "Invalid type!" << std::endl;
 		}
 		i++;
 	}
-	std::cout << "Required type not found" << std::endl;
 	return LnTypeHolder(nullptr);
 }
 
 LnTypeHolder LinksTypeHolder::getByUID(int uid)
 {
+	OMOperator op(&mtx, __func__);
 	return types[uidMapped[uid]];
 }
 
@@ -134,7 +136,7 @@ void LinksTypeHolder::resolveInherits_(LnTypeHolder type, QList<QString> &input)
 		if (!input.contains(type.type->name)) {
 			input.append(type.type->name);
 			for (auto t : type.type->inherits) {
-				resolveInherits_(LinksTypeHolder::instance()->getByUID(t), input);
+				resolveInherits_(SharedInstances::instance()->typesHolder()->getByUID(t), input);
 			}
 		}
 	}
@@ -154,7 +156,7 @@ void LinksTypeHolder::resolveInherits_(LnTypeHolder type, QList<int> &input)
 		input << type.type->uid;
 		if (!input.contains(type.type->uid)) {
 			for (auto t : type.type->inherits) {
-				resolveInherits_(LinksTypeHolder::instance()->getByUID(t), input);
+				resolveInherits_(SharedInstances::instance()->typesHolder()->getByUID(t), input);
 			}
 		}
 	}
@@ -170,7 +172,9 @@ QList<int> LinksTypeHolder::resolveInherits(int t)
 
 int LinksTypeHolder::generateUID()
 {
-	QList<int> allocated;
+	OMOperator op(&mtx, __func__);
+	QList<int> allocated = uidMapped.keys();
+	op.stop();
 
 	std::sort(allocated.begin(), allocated.end());
 	int i = 1;
@@ -185,6 +189,7 @@ int LinksTypeHolder::generateUID()
 
 QList<QString> LinksTypeHolder::typeNames()
 {
+	OMOperator op(&mtx, __func__);
 	return stringMapped.keys();
 }
 
@@ -208,7 +213,6 @@ QList<QString> LinksTypeHolder::typeNames()
 bool LinksTypeHolder::doesSInheritsE(int s, int e)
 {
 	QList<int> l = resolveInherits(s);
-	std::cout << "Input: " << getByUID(s).type->name.toStdString() << ", Output: " << getByUID(s).type->name.toStdString() << std::endl;
 	if (s == e) {
 		return true;
 	}
@@ -217,6 +221,8 @@ bool LinksTypeHolder::doesSInheritsE(int s, int e)
 
 void LinksTypeHolder::cleanup()
 {
+	OMLocker lock(&mtx, __func__);
+
 	stringMapped.clear();
 	uidMapped.clear();
 

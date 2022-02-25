@@ -10,6 +10,7 @@
 #include <QGraphicsScene>
 #include <QPainterPath>
 
+
 ConnectionItem::ConnectionItem(QGraphicsItem *parent) : QGraphicsPathItem(parent)
 {
     setFlag(QGraphicsItem::GraphicsItemFlag::ItemIsSelectable);

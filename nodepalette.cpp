@@ -1,6 +1,7 @@
 #include "nodepalette.h"
 
 #include "relayer.h"
+#include "sharedinstances.h"
 
 NodePalette::NodePalette(QObject *p) : QObject(p) {}
 
@@ -44,6 +45,6 @@ NodePaletteData &NodePalette::getData()
 void NodePalette::setData(NodePaletteData d)
 {
 	m_data = d;
-	Relayer::instance()->dispNodePaletteChange();
+	SharedInstances::instance()->relayer()->dispNodePaletteChange();
 }
 
