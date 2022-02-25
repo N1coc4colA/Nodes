@@ -3,7 +3,7 @@
 #include "helpers.h"
 #include "nodeitem.h"
 #include "nodeeditor.h"
-
+#include "sharedinstances.h"
 #include "relayer.h"
 
 #include <QMenu>
@@ -17,6 +17,7 @@
 #include <QWheelEvent>
 #include <QtOpenGL/QGLFormat>
 #include <QtOpenGL/QGLWidget>
+
 
 View::View(QWidget *parent) :
     QGraphicsView(parent)
@@ -43,15 +44,15 @@ void View::contextMenuEvent(QContextMenuEvent *e)
 		QAction *suppr = menu->addAction(tr("Remove"));
 		QAction *act = menu->exec(mapToGlobal(e->pos()));
 		if (act == edit) {
-			Relayer::instance()->editNode(dynamic_cast<NodeItem *>(it));
+			SharedInstances::instance()->relayer()->editNode(dynamic_cast<NodeItem *>(it));
 		} else if (act == suppr) {
-			Relayer::instance()->rmElement();
+			SharedInstances::instance()->relayer()->rmElement();
 		}
 	} else {
 		QAction *add = menu->addAction(tr("New"));
 		QAction *act = menu->exec(mapToGlobal(e->pos()));
 		if (act == add) {
-			Relayer::instance()->addNode();
+			SharedInstances::instance()->relayer()->addNode();
 		}
 	}
 	delete menu;
@@ -79,14 +80,14 @@ void View::wheelEvent(QWheelEvent *e)
 				scale(1.1, 1.1);
 				ensureVisibility();
 				currentScale *= 1.1;
-				Relayer::instance()->dispScaled(currentScale);
+				SharedInstances::instance()->relayer()->dispScaled(currentScale);
             } else if (currentScale != 20.0) {
                 double v = currentScale/20;
                 if ((v*currentScale) <= 20) {
                     scale(v, v);
 					ensureVisibility();
                     currentScale *= v;
-					Relayer::instance()->dispScaled(currentScale);
+					SharedInstances::instance()->relayer()->dispScaled(currentScale);
                 }
             }
         } else {
@@ -94,7 +95,7 @@ void View::wheelEvent(QWheelEvent *e)
 				scale(0.9, 0.9);
 				ensureVisibility();
 				currentScale *= 0.9;
-				Relayer::instance()->dispScaled(currentScale);
+				SharedInstances::instance()->relayer()->dispScaled(currentScale);
             }
         }
     }

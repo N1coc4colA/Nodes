@@ -3,105 +3,17 @@
 #include "connectionitem.h"
 #include "portitem.h"
 #include "nodeitem.h"
+#include "sharedinstances.h"
 
 #include <fstream>
+#include <iostream>
 
 #include <QGraphicsItem>
 #include <QMessageBox>
 
-char *NodesOpener::readChar(std::ifstream &stream)
-{
-    long size = 0;
-    stream.read((char*)&size, sizeof (size));
-    char *allocated = (char*)malloc((size_t)size);
-    stream.read(allocated, size);
-    return allocated;
-}
-
-NodeStruct NodesOpener::readANode(std::ifstream &stream)
-{
-    NodeStruct st;
-    stream.read((char*)&st.ID, sizeof (st.ID));
-    st.name = readChar(stream);
-    st.type = readChar(stream);
-
-    stream.read((char*)&st.xpos, sizeof (st.xpos));
-    stream.read((char*)&st.ypos, sizeof (st.ypos));
-
-    int i = 0;
-    int len = 0;
-    stream.read((char*)&len, sizeof (len));
-    while (i<len) {
-        int val = 0;
-            stream.read((char*)&val, sizeof (val));
-            st.ports << val;
-        i++;
-    }
-    return st;
-}
-
-PortStruct NodesOpener::readAPort(std::ifstream &stream)
-{
-    PortStruct st;
-    stream.read((char*)&st.ID, sizeof (st.ID));
-    stream.read((char*)&st.isOutput, sizeof (st.isOutput));
-    st.name = readChar(stream);
-    return st;
-}
-
-ConnectionStruct NodesOpener::readAConn(std::ifstream &stream)
-{
-    ConnectionStruct st;
-    stream.read((char*)&st.ID, sizeof (st.ID));
-    stream.read((char*)&st.sourceID, sizeof (st.sourceID));
-    stream.read((char*)&st.targetID, sizeof (st.targetID));
-    return st;
-}
-
-QList<PortStruct> NodesOpener::readPorts(std::ifstream &stream)
-{
-    QList<PortStruct> list;
-    int len = 0;
-    int i = 0;
-    stream.read((char*)&len, sizeof (len));
-
-    while (i<len) {
-        list << readAPort(stream);
-        Q_EMIT itemLoad((i+1)/len);
-        i++;
-    }
-    return list;
-}
-
-QList<ConnectionStruct> NodesOpener::readConns(std::ifstream &stream)
-{
-    QList<ConnectionStruct> list;
-    int len = 0;
-    int i = 0;
-    stream.read((char*)&len, sizeof (len));
-
-    while (i<len) {
-        list << readAConn(stream);
-        Q_EMIT itemLoad((i+1)/len);
-        i++;
-    }
-    return list;
-}
-
-QList<NodeStruct> NodesOpener::readNodes(std::ifstream &stream)
-{
-    QList<NodeStruct> list;
-    int len = 0;
-    int i = 0;
-    stream.read((char*)&len, sizeof (len));
-
-    while (i<len) {
-        list << readANode(stream);
-        Q_EMIT itemLoad((i+1)/len);
-        i++;
-    }
-    return list;
-}
+#define NEEDS_CLEARING 2
+#define CAN_KEEP 1
+#define CAN_CONTINUE 0
 
 NodesOpener::NodesOpener(QString fp, QGraphicsScene *parent) : QObject(parent)
 {
@@ -109,197 +21,173 @@ NodesOpener::NodesOpener(QString fp, QGraphicsScene *parent) : QObject(parent)
     m_parent = parent;
 }
 
-#include <iostream>
-
 void NodesOpener::load()
 {
-    std::ifstream f;
-    f.open(m_fp.remove("file://").toLocal8Bit(), std::ios::in | std::ios::binary);
+	std::ifstream f;
+	f.open(m_fp.remove("file://").toLocal8Bit(), std::ios::in | std::ios::binary);
+	int state = CAN_CONTINUE;
+	QString message;
 
-    if (f.is_open()) {
+	if (f.is_open()) {
+		size_t summary = 0;
 
         //Check API version to know if it is compatible
-        APIVersion versioning;
-        int step;
-        long size = 0;
-        f.read((char*)&versioning, sizeof (versioning));
+		APIVersion versioning;
+		versioning.read(f, summary);
 
-        if (versioning.alpha == VERSION_ALPHA && versioning.beta == VERSION_BETA && versioning.omega == VERSION_OMEGA) {
+		if (versioning.alpha == VERSION_ALPHA && versioning.beta == VERSION_BETA && versioning.gamma == VERSION_GAMMA) {
             QList<ConnectionStruct> connections_list;
             QList<PortStruct> ports_list;
             QList<NodeStruct> nodes_list;
+			QList<TypeStruct> types_list;
+
+			std::cout << "Removing in-app previous data..." << std::endl;
+			//Now we can clear everything.
+			m_parent->clear();
+			SharedInstances::instance()->typesHolder()->cleanup();
+			SharedInstances::instance()->holder()->release();
 
             //Get author and number of items to detect corruptions
-            f.read((char*)&step, sizeof (step));
-            Q_EMIT stepFound(step);
-            Q_EMIT itemLoad(0);
+			AdditionnalDataStruct additional;
+			if (additional.read(SharedInstances::instance()->holder(), f, summary)) {
+				std::cout << "Enabled: "
+				<< (additional.has_types ? "types " : "")
+				<< (additional.has_ports ? "ports " : "")
+				<< (additional.has_conns ? "conns " : "")
+				<< (additional.has_nodes ? "nodes " : "")
+				<< std::endl;
 
-            f.read((char*)&size, sizeof (size));
-            char *author = (char *)malloc((size_t)size);
-            f.read(author, size);
-            Q_EMIT nameFound(author);
-            free(author);
+				std::cout << "Reading needed fields..." << std::endl;
+				//Get the types
+				if (additional.has_types && !readTypes(SharedInstances::instance()->holder(), types_list, f, summary)) {
+					message = tr("Unable to read Types' file part, file:\n%1").arg(m_fp);
+					state = NEEDS_CLEARING;
+				}
 
-            int itemsCount = 0;
-            f.read((char*)&itemsCount, sizeof (itemsCount));
-            Q_EMIT itemLoad(100);
+				//Check items count
+				int itemsCount = 0;
+				f.read((char*)&itemsCount, sizeof(itemsCount));
+				if (f.fail()) {
+					message = tr("Unable to read inventory, file:\n%1").arg(m_fp);
+					state = CAN_KEEP;
+				}
 
-            //Get the nodes
-            f.read((char*)&step, sizeof (step));
-            Q_EMIT stepFound(step);
-            Q_EMIT itemLoad(0);
-            nodes_list = readNodes(f);
-            Q_EMIT itemLoad(100);
+				//Get the nodes
+				if (additional.has_nodes && !readNodes(SharedInstances::instance()->holder(), nodes_list, f, summary)) {
+					message = tr("Unable to read Nodes' file part, file:\n%1").arg(m_fp);
+					state = NEEDS_CLEARING;
+				}
+				//Get the ports
+				if (additional.has_ports && !readPorts(SharedInstances::instance()->holder(), ports_list, f, summary)) {
+					message = tr("Unable to read Ports' file part, file:\n%1").arg(m_fp);
+					state = NEEDS_CLEARING;
+				}
+				//Get the connections
+				if (additional.has_conns && !readConnections(connections_list, f, summary)) {
+					message = tr("Unable to read Connections' file part, file:\n%1").arg(m_fp);
+					state = NEEDS_CLEARING;
+				}
 
-            //Get the ports
-            f.read((char*)&step, sizeof (step));
-            Q_EMIT stepFound(step);
-            Q_EMIT itemLoad(0);
-            ports_list = readPorts(f);
-            Q_EMIT itemLoad(100);
+				std::cout << "Checking fields and inventory..." << std::endl;
+				 if (itemsCount != (ports_list.count() + nodes_list.count() + connections_list.count())) {
+					 message = tr("Inventory is invalid, file:\n%1").arg(m_fp);
+					 state = CAN_KEEP;
+				 }
 
-            //Get the connections
-            f.read((char*)&step, sizeof (step));
-            Q_EMIT stepFound(step);
-            Q_EMIT itemLoad(0);
-            connections_list = readConns(f);
-            Q_EMIT itemLoad(100);
+				 std::cout << "Checking summary..." << std::endl;
+				 //Checkup summary and count.
+				 if (readOffset(f, summary) && state != CAN_KEEP) {
+					 message = tr("Summary invalid, file parts are missing. File:\n%1").arg(m_fp);
+					 state = CAN_KEEP;
+				 }
 
-            if (itemsCount == (nodes_list.count() + connections_list.count() + ports_list.count())) {
-                m_parent->clear();
+				 std::cout << "Generating types..." << std::endl;
+				 //Add all types first, to have a graceful creation of other elements.
+				 int i = 0;
+				 while (i<types_list.length()) {
+					 //std::cout << "Adding type: " << types_list[i].name.toStdString() << std::endl;
+					 types_list[i].addConvertion();
+				 }
 
-                int i = 0;
-                Q_EMIT itemLoad(0);
+				 std::cout << "Building tables..." << std::endl;
+				 //Build tables
+				 QMap<int, QGraphicsItem *> mapped;
+				 QMap<int, PortStruct> port_table;
 
-                i = 0;
-                Q_EMIT itemLoad(100);
+				 for (auto p : ports_list) {
+					 port_table[p.ID] = p;
+				 }
 
-                //Create and setup the nodes
-                Q_EMIT stepFound(step+3);
-                while (i<nodes_list.length()) {
-                    Q_EMIT itemLoad((i+1)/nodes_list.length());
-                    NodeItem *item = new NodeItem;
-                    NodeStruct src = nodes_list[i];
+				 std::cout << "Generating nodes..." << std::endl;
+				 //Add all nodes
+				 i = 0;
+				 while (i<nodes_list.length()) {
+					 NodeItem *item = new NodeItem;
+					 NodeStruct src = nodes_list[i];
 
-                    //m_parent->addItem(item);
+					 item->setTitle(src.name);
+					 item->setTextType(src.type);
+					 item->setPos(src.xpos, src.ypos);
 
-                    item->setTitle(src.name);
-                    item->setTextType(src.type);
-                    item->setPos(src.xpos, src.ypos);
+					 std::cout << "Generating node's ports..." << std::endl;
+					 //Create the needed ports
+					 int j = 0;
+					 while (j<src.ports.length()) {
+						 int p = src.ports[i];
+						 //[TODO] Emit a warning here if the port is not registered.
+						 if (port_table.contains(p)) {
+							 PortStruct s = port_table[p];
+							 mapped[s.ID] = item->addPorts(s.name, s.isOutput, SharedInstances::instance()->typesHolder()->getByUID(s.type));
+						 } else if (state != CAN_KEEP) {
+							 message = tr("Missing data about some ports, representation might be invalid. File:\n%1").arg(m_fp);
+							 state = CAN_KEEP;
+						 }
+						 j++;
+					}
 
-                    int j = 0;
-                    //Create the needed ports
-                    while (j<src.ports.length()) {
-                        /*item->appendPort(dynamic_cast<PortItem *>(mapped[src.ports[j]]));
-                        dynamic_cast<PortItem *>(mapped[src.ports[j]])->setNode(item);*/
+					 item->build();
+					 m_parent->addItem(item);
+					 i++;
+				 }
 
-                        //In the case we build it twice!
-                        int ID = src.ports[j];
-                        if (mapped[ID] == nullptr) {
-                            int k = 0;
-                            bool found = false;
-                            PortStruct st;
-                            while ((found == false) && (k<ports_list.length())) {
-                                if (ports_list[k].ID == ID) {
-                                    st = ports_list[k];
-                                    found = true;
-                                }
-                                k++;
-                            }
+				 std::cout << "Generating conncetions..." << std::endl;
+				 //Build connections
+				 while (i<connections_list.length()) {
+					 ConnectionStruct src = connections_list[i];
 
-                            if (found) {
-                                PortItem *prt = item->addPorts(st.name, st.isOutput);
-                                prt->makeUpdateOnPaint();
-                                prt->setName(ports_list[i].name);
-                                mapped[ID] = prt;
-                            }
-                        }
+					 //Because we continue even if there is an issue with the ports, do not add any on error.
+					 PortItem *tar = dynamic_cast<PortItem *>(mapped[src.targetID]);
+					 PortItem *srt = dynamic_cast<PortItem *>(mapped[src.sourceID]);
+					 if (tar && srt) {
+						 ConnectionItem *item = new ConnectionItem;
 
-                        j++;
-                    }
+						 item->setStartPort(srt);
+						 item->setEndPort(tar);
+						 m_parent->addItem(item);
 
-                    item->build();
-                    m_parent->addItem(item);
-                    mapped[src.ID] = item;
-                    i++;
-                }
+						 item->updateStartEndPos();
+						 item->setZValue(-1);
+					 }
+					 i++;
+				 }
+			 } else {
+				 message = tr("Unable to read Additional data's file part, file:\n%1").arg(m_fp);
+				 state = NEEDS_CLEARING;
+			 }
+		 } else {
+			 message = tr("File is not supported due to its version. Conversions are not supported yet. File:\n%1").arg(m_fp);
+			 state = NEEDS_CLEARING;
+		 }
+	 } else {
+		 message = tr("Unable to open the file: \n%1").arg(m_fp);
+	 }
 
-                Q_EMIT itemLoad(100);
-                i = 0;
+	 Q_EMIT endedLoad(state != NEEDS_CLEARING);
 
-                //Create and setup the connections
-                Q_EMIT stepFound(step+2);
-                while (i<connections_list.length()) {
-                    Q_EMIT itemLoad((i+1)/connections_list.length());
-                    ConnectionItem *item = new ConnectionItem;
-                    ConnectionStruct src = connections_list[i];
-                    PortItem *tar = dynamic_cast<PortItem *>(mapped[src.targetID]);
-                    item->setEndPort(tar);
-                    PortItem *srt = dynamic_cast<PortItem *>(mapped[src.sourceID]);
-                    item->setStartPort(srt);
-                    tar->setConnection(item);
-                    srt->setConnection(item);
-
-                    item->setStartPos(srt->scenePos());
-                    item->setEndPos(tar->scenePos());
-                    m_parent->addItem(item);
-
-                    mapped[src.ID] = item;
-                    i++;
-                }
-
-                i = 0;
-                Q_EMIT itemLoad(100);
-
-                //We edit a second time the connections. The first time their nodes wasn't created.
-                Q_EMIT stepFound(step+4);
-                while (i<connections_list.length()) {
-                    Q_EMIT itemLoad((i+1)/connections_list.length());
-                    ConnectionItem *con = dynamic_cast<ConnectionItem *>(mapped[connections_list[i].ID]);
-                    con->updateStartEndPos();
-                    con->setZValue(-1);
-                    i++;
-                }
-
-                i = 0;
-                Q_EMIT itemLoad(100);
-
-                //We must set if it is output after we created the parent node!
-                Q_EMIT stepFound(step+4);
-
-                //Free allocated data for the char* members
-                freeAllocated(nodes_list);
-                freeAllocated(ports_list);
-                Q_EMIT itemLoad(100);
-
-                Q_EMIT endedLoad(false);
-            } else {
-                Q_EMIT endedLoad(true);
-            }
-        }
-    } else {
-        QMessageBox box(QMessageBox::Icon::Warning, tr("File error"), tr("Unable to read the file %1").arg(m_fp), QMessageBox::StandardButton::Ok);
-        box.exec();
-    }
-}
-
-void NodesOpener::freeAllocated(QList<NodeStruct> &l)
-{
-    int i = 0;
-    while (i<l.length()) {
-        free(l[i].name);
-        free(l[i].type);
-        i++;
-    }
-}
-
-void NodesOpener::freeAllocated(QList<PortStruct> &l)
-{
-    int i = 0;
-    while (i<l.length()) {
-        free(l[i].name);
-        i++;
-    }
+	 if (state != CAN_CONTINUE) {
+		 QMessageBox box(QMessageBox::Icon::Warning, tr("File error"), message + tr("\nThe file have not been loaded."), QMessageBox::StandardButton::Ok);
+		 box.exec();
+	 }
 }
 
 QString NodesOpener::fp()

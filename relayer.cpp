@@ -1,5 +1,6 @@
 #include "relayer.h"
 
+
 Relayer::Relayer(QObject *parent) : QObject(parent) {}
 
 void Relayer::editNode(NodeItem *e)

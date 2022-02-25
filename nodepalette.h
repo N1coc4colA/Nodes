@@ -23,11 +23,6 @@ public:
 	explicit NodePalette(QObject *parent = nullptr);
 	~NodePalette();
 
-	inline static NodePalette *instance() {
-		static NodePalette *inst = new NodePalette;
-		return inst;
-	}
-
 	QColor getInner();
 	QColor getOutter();
 	QColor getTitle();

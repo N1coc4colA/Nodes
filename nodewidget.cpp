@@ -3,13 +3,14 @@
 #include "nodeconnector.h"
 #include "view.h"
 #include "nodeitem.h"
-
+#include "sharedinstances.h"
 #include "relayer.h"
 
 #include <QVBoxLayout>
 #include <QCoreApplication>
 #include <QGraphicsProxyWidget>
 #include <QGraphicsSceneDragDropEvent>
+
 
 NodeItem *createInput()
 {
@@ -82,7 +83,7 @@ NodeWidget::NodeWidget(QWidget *p) : QWidget(p)
     mainLayout->addWidget(m_view);
 
 	connect(m_view, &View::requestNode, this, &NodeWidget::createNode);
-	connect(Relayer::instance(), &Relayer::reqSetScaling, this, &NodeWidget::requestScaling);
+	connect(SharedInstances::instance()->relayer(), &Relayer::reqSetScaling, this, &NodeWidget::requestScaling);
 }
 
 QGraphicsScene *NodeWidget::scene()

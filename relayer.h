@@ -11,10 +11,6 @@ class Relayer : public QObject
 	Q_OBJECT
 public:
 	explicit Relayer(QObject *parent = nullptr);
-	inline static Relayer *instance() {
-		static Relayer *inst = new Relayer;
-		return inst;
-	}
 
 	void editNode(NodeItem *);
 	void addNode();

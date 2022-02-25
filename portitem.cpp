@@ -5,6 +5,7 @@
 #include "nodeitem.h"
 #include "nodepalette.h"
 #include "relayer.h"
+#include "sharedinstances.h"
 
 #include <QPen>
 #include <QBrush>
@@ -12,7 +13,6 @@
 #include <QGraphicsScene>
 #include <QGraphicsWidget>
 
-#include <iostream>
 
 PortItem::PortItem(QGraphicsItem *parent) :
     QGraphicsPathItem(parent),
@@ -25,8 +25,7 @@ PortItem::PortItem(QGraphicsItem *parent) :
     m_uid = UIDC::uid();
 	setFlag(GraphicsItemFlag::ItemSendsScenePositionChanges);
 
-	QObject::connect(Relayer::instance(), &Relayer::nodePaletteChanged, Relayer::instance(), [this]() {
-		std::cout << "Palette changed" << std::endl;
+	QObject::connect(SharedInstances::instance()->relayer(), &Relayer::nodePaletteChanged, SharedInstances::instance()->relayer(), [this]() {
 		update();
 	});
 }
@@ -95,8 +94,8 @@ void PortItem::updateSize()
 		textPath.addText(0, y, font, m_name);
 		dotPath.addEllipse(portTextWidth + 10, 0, 2*radius, 2*radius);
     } else {
-		textPath.addEllipse(0, 0, 2*radius, 2*radius);
-		dotPath.addText(radius +10, y, font, m_name);
+		dotPath.addEllipse(0, 0, 2*radius, 2*radius);
+		textPath.addText(radius +10, y, font, m_name);
 	}
 
     if (parentItem() != nullptr) {
@@ -177,8 +176,11 @@ void PortItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidge
 	}
 
     painter->setPen(Qt::NoPen);
-	painter->setBrush(m_isOutput ? NodePalette::instance()->getRight() : NodePalette::instance()->getLeft());
+	painter->setBrush(m_isOutput ? SharedInstances::instance()->nodePalette()->getRight() : SharedInstances::instance()->nodePalette()->getLeft());
     painter->drawPath(textPath);
+
+	painter->setPen(Qt::NoPen);
+	painter->fillPath(dotPath, t.type->color);
 }
 
 QPointF PortItem::dotPos()
