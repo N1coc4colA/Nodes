@@ -3,6 +3,9 @@
 ## What is it?
 This project is a node editor to show logic and links between things. It can be used for workflows: how your apps should work, or to make what frenchies call "Carte Mentale".
 
+![alt tag](demo_main_ui.png)
+![alt tag](demo_types_ui.png)
+
 ## From where does it comes from?
 The basis of making this was to use it to describe in-app APIs for beginners that might work with me on different projects.
 I was looking for already done apps that was with a "node" system, or diagram. I finally found: https://github.com/bhowiebkr/logic-node-editor
@@ -18,9 +21,18 @@ I translated the code to C++, and added features.
 | Saving nodes | Implemented |
 | Save connections | Implemented |
 | Saving extra data | Implemented |
-| Node theming | Working |
-| Saving types | Working |
-| Node theme editor | Working |
+| Node theming | Implemented |
+| Saving types | Implemented |
+| Node theme editor | Implemented |
+
+## Shortcuts
+| Name | Control |
+|----------------|-------------|
+| New node | Shift+N |
+| Edit a node | Shift+E |
+| Remove an element | Del |
+| Save document | Ctrl+S |
+| Open document | Ctrl+O |
 
 ## Which dependencies?
 ```
