@@ -130,7 +130,7 @@ void LinkEditor::rmvFromInherits()
 
 void LinkEditor::generateLink()
 {
-	QList<int> nt;
+	QList<qint64> nt;
 	int i = 0;
 	while (i < list.count()) {
 		QString p = list.item(i)->text();

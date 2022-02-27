@@ -1,18 +1,18 @@
 #ifndef LOADINGDIALOG_H
 #define LOADINGDIALOG_H
 
-#include "nodesopener.h"
+#include "nodesloader.h"
 
 #include <QDialog>
 
 class LoadingDialog : public QDialog
 {
 public:
-    explicit LoadingDialog(NodesOpener *opener);
+	explicit LoadingDialog(NodesLoader *opener);
     void run();
 
 private:
-    NodesOpener *m_opener;
+	NodesLoader *m_opener;
 };
 
 #endif // LOADINGDIALOG_H

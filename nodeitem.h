@@ -20,20 +20,27 @@ public:
     void setTextType(QString t);
 
     void build();
-	PortItem *addPorts(QString name, bool isOutput = false, LnTypeHolder t = LnTypeHolder(nullptr), int flags = 0, void *ptr = nullptr);
+	PortItem *addPort(QString name, bool isOutput = false, LnTypeHolder t = LnTypeHolder(nullptr), int flags = 0, void *ptr = nullptr);
     void selectConnections(bool value);
     void remove();
     void removePort(PortItem *i);
     void appendPort(PortItem *it);
+	PortItem *getPortAt(QPointF pos);
 
     int getWidth();
     int getHeight();
 
-    int UID();
+	qint64 UID();
     QList<PortItem *> ports();
 
     QVariant itemChange(QGraphicsItem::GraphicsItemChange change, const QVariant &value) override;
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget = nullptr) override;
+
+	enum { Type = UserType + 2 };
+	inline int type() const override
+	{
+		return Type;
+	}
 
 protected:
     void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;
@@ -52,7 +59,7 @@ private:
     QPainterPath m_type_path;
     QPainterPath m_title_path;
 
-    int m_uid = 0;
+	qint64 m_uid = 0;
 
     int internal_width = 0;
 	int internal_height = 0;

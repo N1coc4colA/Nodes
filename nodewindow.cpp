@@ -6,8 +6,8 @@
 #include "nodeeditor.h"
 #include "nodeitem.h"
 
-#include "nodesdiscover.h"
-#include "nodesopener.h"
+#include "nodessaver.h"
+#include "nodesloader.h"
 #include "loadingdialog.h"
 #include "linksviewer.h"
 #include "relayer.h"
@@ -84,16 +84,16 @@ NodeWindow::NodeWindow(QWidget *parent) : QMainWindow(parent)
 	connect(SharedInstances::instance()->relayer(), &Relayer::reqSave, this, [this, nodeWidget, bar]() {
 		QUrl file = QFileDialog::getSaveFileUrl(this, tr("Save a source"), QUrl("computer://"), tr("Node source (*.node);;Tout type (* *.*)"));
         if (!file.isEmpty()) {
-			auto d = new NodesDiscover(bar->author(), file.toString(), qobject_cast<NodeScene *>(nodeWidget->scene())->view);
+			auto d = new NodesSaver(bar->author(), file.toString(), qobject_cast<NodeScene *>(nodeWidget->scene())->view);
 			delete d;
         }
     });
 	connect(SharedInstances::instance()->relayer(), &Relayer::reqLoad, this, [this, nodeWidget, bar]() {
 		QUrl file = QFileDialog::getOpenFileUrl(this, tr("Open a source"), QUrl("computer://"), tr("Node source (*.node);;Tout type (* *.*)"));
         if (!file.isEmpty()) {
-			NodesOpener *opener = new NodesOpener(file.toString(), qobject_cast<NodeScene *>(nodeWidget->scene()));
+			NodesLoader *opener = new NodesLoader(file.toString(), qobject_cast<NodeScene *>(nodeWidget->scene()));
             LoadingDialog *dial = new LoadingDialog(opener);
-            connect(opener, &NodesOpener::nameFound, bar, &TopBar::setAuthor);
+			connect(opener, &NodesLoader::nameFound, bar, &TopBar::setAuthor);
             dial->run();
 			dial->deleteLater();
         }

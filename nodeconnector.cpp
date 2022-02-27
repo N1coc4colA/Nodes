@@ -55,45 +55,42 @@ bool NodeConnector::eventFilter(QObject *watched, QEvent *e)
     }
 
     if (e->type() == QEvent::Type::GraphicsSceneMousePress) {
-        QGraphicsSceneMouseEvent *event = dynamic_cast<QGraphicsSceneMouseEvent *>(e);
-        if (event != nullptr) {
-            if (event->button() == Qt::LeftButton) {
-                QGraphicsItem *item = itemAt(event->scenePos());
+		QGraphicsSceneMouseEvent *event = dynamic_cast<QGraphicsSceneMouseEvent *>(e);
+		if (event != nullptr) {
+			if (event->button() == Qt::LeftButton) {
+				QGraphicsItem *item = itemAt(event->scenePos());
 
-                if (isinstance<PortItem>(item)) {
-                    m_connection = new ConnectionItem;
-                    m_scene->addItem(m_connection);
-                    m_port = dynamic_cast<PortItem *>(item);
+				if (NodeItem *node = dynamic_cast<NodeItem *>(item)) {
+					if (PortItem *p = node->getPortAt(event->scenePos())) {
+						m_connection = new ConnectionItem;
+						m_scene->addItem(m_connection);
+						m_port = p;
 
-					m_connection->setStartPos(m_port->dotPos());
-                    m_connection->setEndPos(event->scenePos());
-                    m_connection->updatePath();
-                    return true;
-
-                } else if (isinstance<ConnectionItem>(item)) {
-                    ConnectionItem *it = dynamic_cast<ConnectionItem *>(item);
-                    m_connection = new ConnectionItem;
-                    m_connection->setStartPos(it->startPos());
-                    m_scene->addItem(m_connection);
-                    m_port = it->startPort();
-                    m_connection->setEndPos(event->scenePos());
-                    m_connection->updateStartEndPos();
-                    return true;
-
-                } else if (isinstance<NodeItem>(item)) {
-                    if (m_lastSelected != nullptr) {
-                        m_lastSelected->selectConnections(false);
-                    }
-                    m_lastSelected = dynamic_cast<NodeItem *>(item);
-                    m_lastSelected->selectConnections(true);
-
-                } else {
-                    if (m_lastSelected != nullptr) {
-                        m_lastSelected->selectConnections(false);
-                    }
-                    m_lastSelected = nullptr;
-                }
-
+						m_connection->setStartPos(m_port->dotPos());
+						m_connection->setEndPos(event->scenePos());
+						m_connection->updatePath();
+						return true;
+					} else {
+						if (m_lastSelected != nullptr) {
+							m_lastSelected->selectConnections(false);
+						}
+						m_lastSelected = node;
+						m_lastSelected->selectConnections(true);
+					}
+				} else if (ConnectionItem *it = dynamic_cast<ConnectionItem *>(item)) {
+					m_connection = new ConnectionItem;
+					m_connection->setStartPos(it->startPos());
+					m_scene->addItem(m_connection);
+					m_port = it->startPort();
+					m_connection->setEndPos(event->scenePos());
+					m_connection->updateStartEndPos();
+					return true;
+				} else {
+					if (m_lastSelected != nullptr) {
+						m_lastSelected->selectConnections(false);
+					}
+					m_lastSelected = nullptr;
+				}
             } else if (event->button() == Qt::RightButton) {
                 //Context menu
             }
@@ -104,20 +101,20 @@ bool NodeConnector::eventFilter(QObject *watched, QEvent *e)
 			m_connection->setEndPos(event->scenePos());
 
 			QGraphicsItem *item = itemAt(event->scenePos());
-			if (isinstance<PortItem>(item)) {
-				PortItem *it = dynamic_cast<PortItem *>(item);
-				if (m_port == it ||
-						!m_port->canConnectTo(it) ||
-						!((m_port->isOutput()) ? SharedInstances::instance()->typesHolder()->doesSInheritsE(m_port->lnType().type->uid, it->lnType().type->uid)
-											  : SharedInstances::instance()->typesHolder()->doesSInheritsE(it->lnType().type->uid, m_port->lnType().type->uid))) {
-					m_connection->setWarned(true);
-				} else {
-					m_connection->setWarned(false);
+
+			bool warn = false;
+			if (NodeItem *node = dynamic_cast<NodeItem *>(item)) {
+				if (PortItem *it = node->getPortAt(event->scenePos())) {
+					if (m_port == it ||
+							!m_port->canConnectTo(it) ||
+							!((m_port->isOutput()) ? SharedInstances::instance()->typesHolder()->doesSInheritsE(m_port->lnType().type->uid, it->lnType().type->uid)
+												  : SharedInstances::instance()->typesHolder()->doesSInheritsE(it->lnType().type->uid, m_port->lnType().type->uid))) {
+						warn = true;
+					}
 				}
-			} else {
-				m_connection->setWarned(false);
 			}
 
+			m_connection->setWarned(warn);
             m_connection->updatePath();
             return true;
         }
@@ -125,43 +122,39 @@ bool NodeConnector::eventFilter(QObject *watched, QEvent *e)
         QGraphicsSceneMouseEvent *event = dynamic_cast<QGraphicsSceneMouseEvent *>(e);
 
         if (m_connection != nullptr && event->button() == Qt::LeftButton) {
-            QGraphicsItem *item = itemAt(event->scenePos());
+			QGraphicsItem *item = itemAt(event->scenePos());
 
             //Connect to the target port
-            if (isinstance<PortItem>(item)) {
-                PortItem *it = dynamic_cast<PortItem *>(item);
+			if (NodeItem *node = dynamic_cast<NodeItem *>(item)) {
+				if (PortItem *it = node->getPortAt(event->scenePos())) {
+					//Check if there's no more than one connection or anything else.
+					//Moreover to check if it can be connected, check the inheritance.
+					if (m_port != it && m_port->canConnectTo(it) &&
+							((m_port->isOutput()) ? SharedInstances::instance()->typesHolder()->doesSInheritsE(m_port->lnType().type->uid, it->lnType().type->uid)
+												  : SharedInstances::instance()->typesHolder()->doesSInheritsE(it->lnType().type->uid, m_port->lnType().type->uid))) {
+						if (it->isConnected()) {
+							it->connection()->remove();
+							it->setConnection(nullptr);
+						}
 
-				//Check if there's no more than one connection or anything else.
-				//Moreover to check if it can be connected, check the inheritance.
-				if (m_port != it && m_port->lnType() != it->lnType() &&
-						m_port->canConnectTo(it) &&
-						((m_port->isOutput()) ? SharedInstances::instance()->typesHolder()->doesSInheritsE(m_port->lnType().type->uid, it->lnType().type->uid)
-											  : SharedInstances::instance()->typesHolder()->doesSInheritsE(it->lnType().type->uid, m_port->lnType().type->uid))) {
-                    if (it->isConnected()) {
-                        it->connection()->remove();
-                        it->setConnection(nullptr);
-                    }
-
-                    m_port->clearConnection();
-                    it->clearConnection();
-					if (m_port->isOutput()) {
-						m_connection->setStartPort(it);
-						m_connection->setEndPort(m_port);
-					} else {
-						m_connection->setStartPort(m_port);
-						m_connection->setEndPort(it);
+						m_port->clearConnection();
+						it->clearConnection();
+						if (m_port->isOutput()) {
+							m_connection->setStartPort(it);
+							m_connection->setEndPort(m_port);
+						} else {
+							m_connection->setStartPort(m_port);
+							m_connection->setEndPort(it);
+						}
+						m_connection->updateStartEndPos();
+						m_connection = nullptr;
 					}
-                    m_connection->updateStartEndPos();
-                    m_connection = nullptr;
-				} else {
-                    m_connection->remove();
-                    m_connection = nullptr;
-                }
+				}
 			}
 
-            if (m_connection != nullptr) {
-                m_connection->remove();
-            }
+			if (m_connection) {
+				m_connection->remove();
+			}
             m_connection = nullptr;
             m_port = nullptr;
             return true;

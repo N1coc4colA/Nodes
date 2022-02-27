@@ -29,8 +29,8 @@ class NodeWidget : public QWidget
 public:
     explicit NodeWidget(QWidget *parent = nullptr);
 
-    void addNode(NodeItem *);
-    void createNode(QString name);
+	void addNode(NodeItem *);
+	void createNode(QString name);
     QGraphicsScene *scene();
 
 public Q_SLOTS:

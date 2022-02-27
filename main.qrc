@@ -4,5 +4,6 @@
         <file>save</file>
         <file>plus</file>
         <file>l-list</file>
+        <file>palette</file>
     </qresource>
 </RCC>

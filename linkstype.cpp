@@ -83,15 +83,18 @@ void LnTypeHolder::release()
 
 LinksTypeHolder::LinksTypeHolder()
 {
-	addType("?", {}, Qt::black);
-
 	OMLocker lock(&mtx, __func__);
-	uidMapped.first() = 0;
-	stringMapped[types.first().type->name] = 0;
-	types.first().type->uid = 0;
+	LinkType *empty = new LinkType;
+	empty->name = "?";
+	empty->inherits = {};
+	empty->uid = 0;
+	empty->color = Qt::black;
+	types.append(LnTypeHolder(empty));
+	stringMapped[empty->name] = empty->uid;
+	uidMapped[empty->uid] = types.indexOf(LnTypeHolder(empty));
 }
 
-void LinksTypeHolder::addType(QString n, QList<int> l, QColor c)
+void LinksTypeHolder::addType(QString n, QList<qint64> l, QColor c)
 {
 	LinkType *empty = new LinkType;
 	empty->uid = generateUID();
@@ -136,6 +139,7 @@ void LinksTypeHolder::resolveInherits_(LnTypeHolder type, QList<QString> &input)
 		if (!input.contains(type.type->name)) {
 			input.append(type.type->name);
 			for (auto t : type.type->inherits) {
+				std::cout << "Resolving: " << SharedInstances::instance()->typesHolder()->getByUID(t).type->name.toStdString() << std::endl;
 				resolveInherits_(SharedInstances::instance()->typesHolder()->getByUID(t), input);
 			}
 		}
@@ -144,13 +148,13 @@ void LinksTypeHolder::resolveInherits_(LnTypeHolder type, QList<QString> &input)
 
 QList<QString> LinksTypeHolder::resolveInherits(QString n)
 {
-	 QList<QString> l;
-	 resolveInherits_(getByName(n), l);
-	 l.removeAll(n);
-	 return l;
+	QList<QString> l;
+	resolveInherits_(getByName(n), l);
+	l.removeAll(n);
+	return l;
 }
 
-void LinksTypeHolder::resolveInherits_(LnTypeHolder type, QList<int> &input)
+void LinksTypeHolder::resolveInherits_(LnTypeHolder type, QList<qint64> &input)
 {
 	if (type.valid) {
 		input << type.type->uid;
@@ -162,9 +166,9 @@ void LinksTypeHolder::resolveInherits_(LnTypeHolder type, QList<int> &input)
 	}
 }
 
-QList<int> LinksTypeHolder::resolveInherits(int t)
+QList<qint64> LinksTypeHolder::resolveInherits(qint64 t)
 {
-	QList<int> l;
+	QList<qint64> l;
 	resolveInherits_(getByUID(t), l);
 	l.removeAll(t);
 	return l;
@@ -173,8 +177,12 @@ QList<int> LinksTypeHolder::resolveInherits(int t)
 int LinksTypeHolder::generateUID()
 {
 	OMOperator op(&mtx, __func__);
-	QList<int> allocated = uidMapped.keys();
+	QList<qint64> allocated = uidMapped.keys();
 	op.stop();
+
+	for (auto v : allocated) {
+		std::cout << "ID Reg: " << v << std::endl;
+	}
 
 	std::sort(allocated.begin(), allocated.end());
 	int i = 1;
@@ -210,12 +218,12 @@ QList<QString> LinksTypeHolder::typeNames()
  *
  */
 
-bool LinksTypeHolder::doesSInheritsE(int s, int e)
+bool LinksTypeHolder::doesSInheritsE(qint64 s, qint64 e)
 {
-	QList<int> l = resolveInherits(s);
 	if (s == e) {
 		return true;
 	}
+	QList<qint64> l = resolveInherits(s);
 	return l.contains(e);
 }
 

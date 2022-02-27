@@ -7,6 +7,8 @@ ColorPicker::ColorPicker(QWidget *p)
 	setFixedSize(50, 30);
 	connect(this, &ColorPicker::clicked, &dial, &QColorDialog::exec);
 	connect(&dial, &QColorDialog::colorSelected, this, &ColorPicker::setupColor);
+
+	dial.setOption(QColorDialog::ShowAlphaChannel);
 	setColor(Qt::yellow);
 }
 

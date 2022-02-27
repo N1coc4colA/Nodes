@@ -1,9 +1,10 @@
 #ifndef DOM_H
 #define DOM_H
 
-#include <string>
 #include <QList>
 #include <QColor>
+#include <QDataStream>
+#include <QMetaType>
 
 #define VERSION_ALPHA 0
 #define VERSION_BETA 0
@@ -14,126 +15,159 @@ class PortItem;
 class NodeItem;
 class QDate;
 
-struct StringsHolder {
-	QList<char *> strings;
-	void add(char *target);
-	void release(char *target);
-
-	void release();
-};
-
-struct ColorStruct {
-	unsigned int r : 1;
-	unsigned int g : 1;
-	unsigned int b : 1;
-	unsigned int a : 1;
-
-	void write(std::ofstream &stream, size_t &offset);
-	bool read(std::ifstream &stream, size_t &sum);
+class ColorData {
+public:
+	quint8 r;
+	quint8 g;
+	quint8 b;
+	quint8 a;
 
 	QColor convert();
 	void from(QColor c);
 };
 
-struct TypeStruct {
-	explicit TypeStruct();
-	explicit TypeStruct(int id, ColorStruct c, QString n, QList<int> inh);
-	TypeStruct(const TypeStruct &src);
-
-	int ID = -1;
-	ColorStruct color;
+class TypeData {
+public:
+	qint64 ID = -1;
+	ColorData color;
 	QString name;
-	QList<int> inherits;
-
-	void write(std::ofstream &stream, size_t &offset);
-	bool read(StringsHolder *holder, std::ifstream &stream, size_t &sum);
+	QList<qint64> inherits;
 
 	void addConvertion();
 	void from(LnTypeHolder holder);
-
-	//TypeStruct(const TypeStruct &src);
-	//TypeStruct &operator = (TypeStruct src);
-	TypeStruct &operator = (const TypeStruct &src);
 };
 
-struct ConnectionStruct {
-    int ID = -1;
-    int targetID = -1;
-    int sourceID = -1;
-
-	void write(std::ofstream &stream, size_t &offset);
-	bool read(std::ifstream &stream, size_t &sum);
+class ConnectionData {
+public:
+	qint64 ID = -1;
+	qint64 sourceID = -1;
+	qint64 targetID = -1;
 };
 
-struct PortStruct {
-    int ID = -1;
+class PortData {
+public:
+	qint64 ID = -1;
 	bool isOutput = false;
-	int type = 0;
+	qint64 type = 0;
 	QString name;
-
-	void write(std::ofstream &stream, size_t &offset);
-	bool read(StringsHolder *holder, std::ifstream &stream, size_t &sum);
 
 	void from(PortItem *);
 };
 
-struct NodeStruct {
-    int ID = -1;
+class NodeData {
+public:
+	qint64 ID = -1;
     double xpos = 0;
 	double ypos = 0;
 	QString name;
 	QString type;
-    QList<int> ports;
-
-	void write(std::ofstream &stream, size_t &offset);
-	bool read(StringsHolder *holder, std::ifstream &stream, size_t &sum);
+	QList<qint64> ports;
 
 	void from(NodeItem *it);
 };
 
-struct DateStruct {
-	int day : 1;
-	int month : 1;
-	int year : 2;
-
-	void write(std::ofstream &stream, size_t &offset);
-	bool read(std::ifstream &stream, size_t &offset);
+class DateData {
+public:
+	qint8 day = 0;
+	qint8 month = 0;
+	qint16 year = 0;
 
 	void from(QDate d);
 };
 
-struct AdditionnalDataStruct {
+class AdditionnalData {
+public:
 	QString authorName;
-	DateStruct date;
+	DateData date;
 
 	bool has_types = false;
 	bool has_nodes = false;
 	bool has_ports = false;
 	bool has_conns = false;
-
-	void write(std::ofstream &stream, size_t &offset);
-	bool read(StringsHolder *holder, std::ifstream &stream, size_t &offset);
 };
 
-struct APIVersion {
-	unsigned int alpha : 1;
-	unsigned int beta : 1;
-	unsigned int gamma : 1;
-
-	void write(std::ofstream &stream, size_t &offset);
-	bool read(std::ifstream &stream, size_t &offset);
+class APIVersionData {
+public:
+	quint8 alpha = 0;
+	quint8 beta = 0;
+	quint8 gamma = 0;
 };
 
-void writeTypes(QList<TypeStruct> l, std::ofstream &stream, size_t &offset);
-void writePorts(QList<PortStruct> l, std::ofstream &stream, size_t &offset);
-void writeNodes(QList<NodeStruct> l, std::ofstream &stream, size_t &offset);
-void writeConnections(QList<ConnectionStruct> l, std::ofstream &stream, size_t &offset);
-void writeOffset(std::ofstream &stream, size_t &current);
+class NodeDOM {
+public:
+	APIVersionData versioning;
+	AdditionnalData additional;
+	QList<TypeData> types;
+	QList<NodeData> nodes;
+	QList<PortData> ports;
+	QList<ConnectionData> conns;
+	quint64 sum;
+	bool validity = false;
 
-bool readTypes(StringsHolder *holder, QList<TypeStruct> &l, std::ifstream &stream, size_t &offset);
-bool readPorts(StringsHolder *holder, QList<PortStruct> &l, std::ifstream &stream, size_t &offset);
-bool readNodes(StringsHolder *holder, QList<NodeStruct> &l, std::ifstream &stream, size_t &offset);
-bool readConnections(QList<ConnectionStruct> &l, std::ifstream &stream, size_t &offset);
-bool readOffset(std::ifstream &stream, size_t &current);
+	void build(QString name);
+	quint64 summup();
+};
+
+Q_DECLARE_METATYPE(ColorData);
+Q_DECLARE_METATYPE(TypeData);
+Q_DECLARE_METATYPE(ConnectionData);
+Q_DECLARE_METATYPE(PortData);
+Q_DECLARE_METATYPE(NodeData);
+Q_DECLARE_METATYPE(DateData);
+Q_DECLARE_METATYPE(AdditionnalData);
+Q_DECLARE_METATYPE(APIVersionData);
+Q_DECLARE_METATYPE(NodeDOM);
+
+void setupMetatypes();
+
+
+template <typename T>
+inline void serializeList(QDataStream &out, const QList<T> &src)
+{
+	qint64 s = src.length();
+	out << s;
+	int i = 0;
+	while (i < s) {
+		out << src[i];
+		i++;
+	}
+}
+
+template <typename T>
+inline void deserializeList(QDataStream &in, QList<T> &src)
+{
+	qint64 s;
+	in >> s;
+	int i = 0;
+	while (i < s) {
+		T ti;
+		in >> ti;
+		src << ti;
+		i++;
+	}
+}
+
+template <typename T>
+void deserializeList(QDataStream &out, QList<T> &src);
+
+QDataStream &operator<<(QDataStream &out, const ColorData &);
+QDataStream &operator<<(QDataStream &out, const TypeData &);
+QDataStream &operator<<(QDataStream &out, const ConnectionData &);
+QDataStream &operator<<(QDataStream &out, const PortData &);
+QDataStream &operator<<(QDataStream &out, const NodeData &);
+QDataStream &operator<<(QDataStream &out, const DateData &);
+QDataStream &operator<<(QDataStream &out, const AdditionnalData &);
+QDataStream &operator<<(QDataStream &out, const APIVersionData &);
+QDataStream &operator<<(QDataStream &out, const NodeDOM &);
+
+QDataStream &operator>>(QDataStream &in, ColorData &);
+QDataStream &operator>>(QDataStream &in, TypeData &);
+QDataStream &operator>>(QDataStream &in, ConnectionData &);
+QDataStream &operator>>(QDataStream &in, PortData &);
+QDataStream &operator>>(QDataStream &in, NodeData &);
+QDataStream &operator>>(QDataStream &in, DateData &);
+QDataStream &operator>>(QDataStream &in, AdditionnalData &);
+QDataStream &operator>>(QDataStream &in, APIVersionData &);
+QDataStream &operator>>(QDataStream &in, NodeDOM &);
 
 #endif // DOM_H

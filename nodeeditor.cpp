@@ -208,7 +208,7 @@ void NodeEditor::applyChanges()
 	}
 
 	while (i<len) {
-		m_target->addPorts(m_list->model()->data(m_list->model()->index(i, 0)).toString(),
+		m_target->addPort(m_list->model()->data(m_list->model()->index(i, 0)).toString(),
 						   (m_list->model()->data(m_list->model()->index(i, 1), Qt::CheckStateRole).value<Qt::CheckState>() == Qt::CheckState::Unchecked),
 						   SharedInstances::instance()->typesHolder()->getByName(m_list->model()->data(m_list->model()->index(i, 2)).toString()));
         i++;

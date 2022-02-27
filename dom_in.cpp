@@ -1,334 +1,69 @@
 #include "dom.h"
 
-#include <fstream>
-#include <string>
-#include <vector>
-#include <iostream>
 
-char *readChar(std::ifstream &stream, size_t &offset)
+QDataStream &operator>>(QDataStream &in, ColorData &c)
 {
-	long size = 0;
-	stream.read((char*)&size, sizeof(size));
-	if (stream.fail()) {
-		return nullptr;
-	}
-	offset += sizeof(size);
-
-	char *allocated = new char [size];
-	if (allocated) {
-		stream.read(allocated, size);
-		if (stream.fail()) {
-			delete [] allocated;
-			return nullptr;
-		}
-		offset += size;
-	}
-
-	return allocated;
+	return in >> c.r >> c.g >> c.b >> c.a;
 }
 
-QString readString(StringsHolder *holder, std::ifstream &stream, size_t &offset)
+QDataStream &operator>>(QDataStream &in, TypeData &t)
 {
-	long size = 0;
-	stream.read((char*)&size, sizeof(size));
-	if (stream.fail()) {
-		return nullptr;
-	}
-	offset += sizeof(size);
-
-	char *allocated = new char [size];
-	if (allocated) {
-		stream.read(allocated, size);
-		if (stream.fail()) {
-			delete [] allocated;
-			return QString();
-		}
-		offset += size;
-	}
-
-	holder->add(allocated);
-
-	QString v;
-	long i = 0;
-	while (i < size) {
-		v += allocated[i];
-		i++;
-	}
-
-	return v;
+	in >> t.ID >> t.color >> t.name;
+	deserializeList(in, t.inherits);
+	return in;
 }
 
-bool ColorStruct::read(std::ifstream &stream, size_t &offset)
+QDataStream &operator>>(QDataStream &in, ConnectionData &c)
 {
-	stream.read((char *)this, sizeof(this));
-	if (stream.fail()) {
-		return false;
-	}
-	offset += sizeof(this);
-	return true;
+	return in >> c.ID >> c.sourceID >> c.targetID;
 }
 
-bool TypeStruct::read(StringsHolder *holder, std::ifstream &stream, size_t &offset)
+QDataStream &operator>>(QDataStream &in, PortData &p)
 {
-	stream.read((char*)&ID, sizeof(ID));
-	if (stream.fail()) {
-		return false;
-	}
-	offset += sizeof(ID);
-
-	//memcpy((char *)&name, (char *)&tmp, sizeof(name));
-	name = readString(holder, stream, offset);
-	std::cout << "Found type: " << name.toStdString() << std::endl;
-	color.read(stream, offset);
-
-	int i = 0, len = 0;
-	stream.read((char*)&len, sizeof(len));
-	if (stream.fail()) {
-		return false;
-	}
-	offset += sizeof(len);
-
-	while (i<len) {
-		int t = -1;
-		stream.read((char*)&t, sizeof(int));
-		if (!stream.fail()) {
-			inherits << t;
-			offset += sizeof(int);
-		} else {
-			return false;
-		}
-		i++;
-	}
-	return true;
+	in >> p.ID >> p.isOutput >> p.type >> p.name;
+	return in;
 }
 
-bool NodeStruct::read(StringsHolder *holder, std::ifstream &stream, size_t &offset)
+QDataStream &operator>>(QDataStream &in, NodeData &n)
 {
-	stream.read((char*)&ID, sizeof(ID));
-	if (stream.fail()) {
-		return false;
-	}
-	offset += sizeof(ID);
-
-	name = readString(holder, stream, offset);
-	type = readString(holder, stream, offset);
-
-	stream.read((char*)&xpos, sizeof(xpos));
-	if (stream.fail()) {
-		return false;
-	}
-	offset += sizeof(xpos);
-	stream.read((char*)&ypos, sizeof(ypos));
-	if (stream.fail()) {
-		return false;
-	}
-	offset += sizeof(ypos);
-
-	int i = 0, len = 0;
-	stream.read((char*)&len, sizeof(len));
-	if (stream.fail()) {
-		return false;
-	}
-	offset += sizeof(len);
-
-	while (i<len) {
-		int p = -1;
-		stream.read((char*)&p, sizeof(int));
-		if (stream.fail()) {
-			return false;
-		}
-		ports << p;
-		offset += sizeof(int);
-		i++;
-	}
-	return true;
+	in >> n.ID >> n.xpos >> n.ypos >> n.name >> n.type;
+	deserializeList(in, n.ports);
+	return in;
 }
 
-bool PortStruct::read(StringsHolder *holder, std::ifstream &stream, size_t &offset)
+QDataStream &operator>>(QDataStream &in, DateData &d)
 {
-	stream.read((char*)&ID, sizeof(ID));
-	if (stream.fail()) {
-		return false;
-	}
-	offset += sizeof(ID);
-
-	stream.read((char*)&isOutput, sizeof(isOutput));
-	if (stream.fail()) {
-		return false;
-	}
-	offset += sizeof(isOutput);
-
-	stream.read((char*)&type, sizeof(type));
-	if (stream.fail()) {
-		return false;
-	}
-	offset += sizeof(type);
-
-	name = readString(holder, stream, offset);
-	return true;
+	return in >> d.year >> d.month >> d.day;
 }
 
-bool ConnectionStruct::read(std::ifstream &stream, size_t &offset)
+QDataStream &operator>>(QDataStream &in, AdditionnalData &a)
 {
-	stream.read((char*)&ID, sizeof(ID));
-	if (stream.fail()) {
-		return false;
-	}
-	offset += sizeof(ID);
-
-	stream.read((char*)&sourceID, sizeof(sourceID));
-	if (stream.fail()) {
-		return false;
-	}
-	offset += sizeof(sourceID);
-
-	stream.read((char*)&targetID, sizeof(targetID));
-	if (stream.fail()) {
-		return false;
-	}
-	offset += sizeof(targetID);
-	return true;
+	return in >> a.authorName >> a.date >> a.has_types >> a.has_nodes >> a.has_ports >> a.has_conns;
 }
 
-bool DateStruct::read(std::ifstream &stream, size_t &offset)
+QDataStream &operator>>(QDataStream &in, APIVersionData &v)
 {
-	stream.read((char*)this, sizeof(this));
-	if (stream.fail()) {
-		return false;
-	}
-	offset += sizeof(this);
-	return true;
+	return in >> v.alpha >> v.beta >> v.gamma;
 }
 
-bool AdditionnalDataStruct::read(StringsHolder *holder, std::ifstream &stream, size_t &offset)
+QDataStream &operator>>(QDataStream &in, NodeDOM &dom)
 {
-	authorName = readString(holder, stream, offset);
-	if (!date.read(stream, offset)) {
-		return false;
+	in >> dom.versioning >> dom.additional;
+	if (dom.additional.has_types) {
+		deserializeList(in, dom.types);
+	}
+	if (dom.additional.has_nodes) {
+		deserializeList(in, dom.nodes);
+	}
+	if (dom.additional.has_ports) {
+		deserializeList(in, dom.ports);
+	}
+	if (dom.additional.has_conns) {
+		deserializeList(in, dom.conns);
 	}
 
-	stream.read((char*)&has_types, sizeof(has_types));
-	if (stream.fail()) {
-		return false;
-	}
-	stream.read((char*)&has_nodes, sizeof(has_nodes));
-	if (stream.fail()) {
-		return false;
-	}
-	stream.read((char*)&has_ports, sizeof(has_ports));
-	if (stream.fail()) {
-		return false;
-	}
-	stream.read((char*)&has_conns, sizeof(has_conns));
-	if (stream.fail()) {
-		return false;
-	}
+	in >> dom.sum;
+	dom.validity = dom.summup() == dom.sum;
 
-	return true;
-}
-
-bool APIVersion::read(std::ifstream &stream, size_t &offset)
-{
-	stream.read((char*)this, sizeof(this));
-	if (stream.fail()) {
-		return false;
-	}
-	offset += sizeof(this);
-	return true;
-}
-
-bool readTypes(StringsHolder *holder, QList<TypeStruct> &types, std::ifstream &stream, size_t &offset)
-{
-	int len = 0;
-	stream.read((char*)&len, sizeof(len));
-	if (stream.fail()) {
-		return false;
-	}
-	offset += sizeof(len);
-
-	int i = 0;
-	while (i<len) {
-		TypeStruct s;
-		if (!s.read(holder, stream, offset)) {
-			std::cout << "Aborted due to read error!" << std::endl;
-			return false;
-		}
-		types << s;
-		i++;
-	}
-	return true;
-}
-
-bool readPorts(StringsHolder *holder, QList<PortStruct> &ports, std::ifstream &stream, size_t &offset)
-{
-	int len = 0;
-	stream.read((char*)&len, sizeof(len));
-	if (stream.fail()) {
-		return false;
-	}
-	offset += sizeof(len);
-
-	int i = 0;
-	while (i<len) {
-		PortStruct s;
-		if (!s.read(holder, stream, offset)) {
-			return false;
-		}
-		ports << s;
-		i++;
-	}
-	return true;
-}
-
-bool readNodes(StringsHolder *holder, QList<NodeStruct> &nodes, std::ifstream &stream, size_t &offset)
-{
-	int len = 0;
-	stream.read((char*)&len, sizeof(len));
-	if (stream.fail()) {
-		return false;
-	}
-	offset += sizeof(len);
-
-	int i = 0;
-	while (i<len) {
-		NodeStruct s;
-		if (!s.read(holder, stream, offset)) {
-			return false;
-		}
-		nodes << s;
-		i++;
-	}
-	return true;
-}
-
-bool readConnections(QList<ConnectionStruct> &conns, std::ifstream &stream, size_t &offset)
-{
-	int len = 0;
-	stream.read((char*)&len, sizeof(len));
-	if (stream.fail()) {
-		return false;
-	}
-	offset += sizeof(len);
-
-	int i = 0;
-	while (i<len) {
-		ConnectionStruct s;
-		if (s.read(stream, offset)) {
-			return false;
-		}
-		conns << s;
-		i++;
-	}
-	return true;
-}
-
-bool readOffset(std::ifstream &stream, size_t &current)
-{
-	size_t stored = 0;
-	stream.read((char*)&stored, sizeof(stored));
-	if (stream.fail()) {
-		return false;
-	}
-	current += sizeof(stored);
-	return stored == current;
+	return in;
 }

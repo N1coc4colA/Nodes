@@ -33,7 +33,7 @@ void UIDC::less()
     this->generationPos+=1;
 }
 
-int UIDC::uid()
+qint64 UIDC::uid()
 {
     int v = UIDC::instance()->generationPos;
     UIDC::instance()->less();

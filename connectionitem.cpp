@@ -22,7 +22,7 @@ ConnectionItem::ConnectionItem(QGraphicsItem *parent) : QGraphicsPathItem(parent
 
 ConnectionItem::~ConnectionItem() {}
 
-int ConnectionItem::UID()
+qint64 ConnectionItem::UID()
 {
     return m_uid;
 }

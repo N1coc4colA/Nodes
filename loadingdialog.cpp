@@ -6,7 +6,7 @@
 #include <QProgressBar>
 
 
-LoadingDialog::LoadingDialog(NodesOpener *opener)
+LoadingDialog::LoadingDialog(NodesLoader *opener)
 {
     QVBoxLayout *lay = new QVBoxLayout;
     QLabel *file = new QLabel(opener->fp());
@@ -25,16 +25,16 @@ LoadingDialog::LoadingDialog(NodesOpener *opener)
 
     setLayout(lay);
 
-    connect(opener, &NodesOpener::stepFound, this, [=](int v) {
+	connect(opener, &NodesLoader::stepFound, this, [=](int v) {
         step->setText(QString::number(v+1) + "/5");
     });
-    connect(opener, &NodesOpener::itemLoad, this, [=](double v) {
+	connect(opener, &NodesLoader::itemLoad, this, [=](double v) {
         bar->setValue((int)v);
     });
-    connect(opener, &NodesOpener::nameFound, this, [=](QString v) {
+	connect(opener, &NodesLoader::nameFound, this, [=](QString v) {
         name->setText(tr("Author: ") + v);
     });
-    connect(opener, &NodesOpener::endedLoad, this, [=](bool failed) {
+	connect(opener, &NodesLoader::endedLoad, this, [=](bool failed) {
         if (!failed) {
             this->done(0);
         } else {

@@ -25,7 +25,7 @@ NodeItem::NodeItem(QGraphicsItem *parent) : QGraphicsPathItem(parent)
 	});
 }
 
-int NodeItem::UID()
+qint64 NodeItem::UID()
 {
     return m_uid;
 }
@@ -66,7 +66,7 @@ void NodeItem::removePort(PortItem *i)
 	scene()->removeItem(i);
 }
 
-PortItem *NodeItem::addPorts(QString name, bool isOutput, LnTypeHolder t, int flags, void *ptr)
+PortItem *NodeItem::addPort(QString name, bool isOutput, LnTypeHolder t, int flags, void *ptr)
 {
     PortItem *port = new PortItem(this);
     port->setIsOutput(isOutput);
@@ -75,6 +75,7 @@ PortItem *NodeItem::addPorts(QString name, bool isOutput, LnTypeHolder t, int fl
     port->setPortFlags(flags);
 	port->setPtr(ptr);
 	port->setLnType(t);
+	port->setZValue(1);
 	//port->setParentItem(this);
 
     m_ports << port;
@@ -220,6 +221,7 @@ void NodeItem::build()
 			m_ports[i]->setPos(m_horMargin/2, y);
         }
 		y += poH;
+		m_ports[i]->update();
         i++;
     }
 
@@ -264,4 +266,14 @@ QVariant NodeItem::itemChange(QGraphicsItem::GraphicsItemChange change, const QV
         }
     }
     return var;
+}
+
+PortItem *NodeItem::getPortAt(QPointF pos)
+{
+	for (auto i : m_ports) {
+		if (i->pointIn(pos)) {
+			return i;
+		}
+	}
+	return nullptr;
 }

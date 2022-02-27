@@ -16,10 +16,10 @@ void printTrace();
 class UIDC {
 public:
     static UIDC *instance();
-    static int uid();
+	static qint64 uid();
     void less();
 private:
-    int generationPos = 0;
+	qint64 generationPos = 0;
 };
 
 #endif // HELPERS_H

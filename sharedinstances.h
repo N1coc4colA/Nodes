@@ -21,13 +21,11 @@ public:
 	LinksTypeHolder *typesHolder();
 	NodePalette *nodePalette();
 	Relayer *relayer();
-	StringsHolder *holder();
 
 private:
 	LinksTypeHolder *m_typesHolder;
 	NodePalette *m_nodePalette;
 	Relayer *m_relayer;
-	StringsHolder *m_sh;
 
 	inline static SharedInstances *inst = nullptr;
 };

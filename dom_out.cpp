@@ -1,175 +1,65 @@
 #include "dom.h"
 
-#include <fstream>
-#include <iostream>
 
-void writeChar(char *c, std::ofstream &stream, size_t &offset)
+QDataStream &operator<<(QDataStream &out, const ColorData &c)
 {
-	long namesize = strlen(c) + 1;
-	stream.write((char*)&namesize, sizeof(namesize));
-	stream.write(c, namesize);
-
-	offset += sizeof(namesize) + namesize;
+	return out << c.r << c.g << c.b << c.a;
 }
 
-void writeString(QString string, std::ofstream &stream, size_t &offset)
+QDataStream &operator<<(QDataStream &out, const TypeData &t)
 {
-	std::string v = string.toStdString();
-	long s = v.length();
-	stream.write((char*)&s, sizeof(s));
-	stream.write(v.c_str(), s);
-
-	offset += sizeof(s) + s;
+	out << t.ID << t.color << t.name;
+	serializeList(out, t.inherits);
+	return out;
 }
 
-void ColorStruct::write(std::ofstream &stream, size_t &offset)
+QDataStream &operator<<(QDataStream &out, const ConnectionData &c)
 {
-	stream.write((char *)this, sizeof(this));
-	offset += sizeof(this);
+	return out << c.ID << c.sourceID << c.targetID;
 }
 
-void TypeStruct::write(std::ofstream &stream, size_t &offset)
+QDataStream &operator<<(QDataStream &out, const PortData &p)
 {
-	stream.write((char*)&ID, sizeof(ID));
-	writeString(name, stream, offset);
+	return out << p.ID << p.isOutput << p.type << p.name;
+}
 
-	color.write(stream, offset);
+QDataStream &operator<<(QDataStream &out, const NodeData &n)
+{
+	out << n.ID << n.xpos << n.ypos << n.name << n.type;
+	serializeList(out, n.ports);
+	return out;
+}
 
-	int i = 0;
-	int len = inherits.length();
-	stream.write((char*)&len, sizeof(len));
+QDataStream &operator<<(QDataStream &out, const DateData &d)
+{
+	return out << d.year << d.month << d.day;
+}
 
-	while (i<len) {
-		stream.write((char*)&inherits[i], sizeof(inherits[i]));
-		offset += sizeof(inherits[i]);
-		i++;
+QDataStream &operator<<(QDataStream &out, const AdditionnalData &a)
+{
+	return out << a.authorName << a.date << a.has_types << a.has_nodes << a.has_ports << a.has_conns;
+}
+
+QDataStream &operator<<(QDataStream &out, const APIVersionData &v)
+{
+	return out << v.alpha << v.beta << v.gamma;
+}
+
+QDataStream &operator<<(QDataStream &out, const NodeDOM &dom)
+{
+	out << dom.versioning << dom.additional;
+	if (dom.additional.has_types) {
+		serializeList(out, dom.types);
 	}
-
-
-	offset += sizeof(ID)+sizeof(len);
-}
-
-void NodeStruct::write(std::ofstream &stream, size_t &offset)
-{
-	stream.write((char*)&ID, sizeof(ID));
-
-	writeString(name, stream, offset);
-	writeString(type, stream, offset);
-
-	stream.write((char*)&xpos, sizeof(xpos));
-	stream.write((char*)&ypos, sizeof(ypos));
-
-	int i = 0;
-	int len = ports.length();
-	stream.write((char*)&len, sizeof(len));
-
-	offset += sizeof(len)+sizeof(xpos)+sizeof(ypos)+sizeof (ID);
-
-	while (i<len) {
-		stream.write((char*)&ports[i], sizeof(ports[i]));
-		offset += sizeof(ports[i]);
-		i++;
+	if (dom.additional.has_nodes) {
+		serializeList(out, dom.nodes);
 	}
-}
-
-void PortStruct::write(std::ofstream &stream, size_t &offset)
-{
-	stream.write((char*)&ID, sizeof(ID));
-	stream.write((char*)&isOutput, sizeof(isOutput));
-	stream.write((char*)&type, sizeof(type));
-
-	writeString(name, stream, offset);
-
-	offset += sizeof(ID)+sizeof(isOutput)+sizeof(type);
-}
-
-void ConnectionStruct::write(std::ofstream &stream, size_t &offset)
-{
-	stream.write((char*)&ID, sizeof(ID));
-	stream.write((char*)&sourceID, sizeof(sourceID));
-	stream.write((char*)&targetID, sizeof(targetID));
-
-	offset += sizeof(targetID)+sizeof(ID)+sizeof(sourceID);
-}
-
-void DateStruct::write(std::ofstream &stream, size_t &offset)
-{
-	stream.write((char*)this, sizeof(this));
-	offset += sizeof(this);
-}
-
-void AdditionnalDataStruct::write(std::ofstream &stream, size_t &offset)
-{
-	writeString(authorName, stream, offset);
-	date.write(stream, offset);
-
-	stream.write((char*)&has_types, sizeof(has_types));
-	stream.write((char*)&has_nodes, sizeof(has_nodes));
-	stream.write((char*)&has_ports, sizeof(has_ports));
-	stream.write((char*)&has_conns, sizeof(has_conns));
-}
-
-void APIVersion::write(std::ofstream &stream, size_t &offset)
-{
-	stream.write((char*)this, sizeof(this));
-	offset += sizeof(this);
-}
-
-void writeTypes(QList<TypeStruct> types, std::ofstream &stream, size_t &offset)
-{
-	int len = types.length();
-	stream.write((char*)&len, sizeof(len));
-	offset += sizeof(len);
-
-	int i = 0;
-	while (i<len) {
-		types[i].write(stream, offset);
-		i++;
+	if (dom.additional.has_ports) {
+		serializeList(out, dom.ports);
 	}
-	std::cout << "Total number of types: " << len << ", written: " << i << std::endl;
-}
-
-void writePorts(QList<PortStruct> ports, std::ofstream &stream, size_t &offset)
-{
-	int len = ports.length();
-	stream.write((char*)&len, sizeof(len));
-	offset += sizeof(len);
-
-	int i = 0;
-	while (i<len) {
-		ports[i].write(stream, offset);
-		i++;
+	if (dom.additional.has_conns) {
+		serializeList(out, dom.conns);
 	}
+	return out << dom.sum;
 }
 
-void writeNodes(QList<NodeStruct> nodes, std::ofstream &stream, size_t &offset)
-{
-	int len = nodes.length();
-	stream.write((char*)&len, sizeof(len));
-	offset += sizeof(len);
-
-	int i = 0;
-	while (i<len) {
-		nodes[i].write(stream, offset);
-		i++;
-	}
-}
-
-void writeConnections(QList<ConnectionStruct> conns, std::ofstream &stream, size_t &offset)
-{
-	int len = conns.length();
-	stream.write((char*)&len, sizeof(len));
-	offset += sizeof(len);
-
-	int i = 0;
-	while (i<len) {
-		conns[i].write(stream, offset);
-		i++;
-	}
-}
-
-void writeOffset(std::ofstream &stream, size_t &current)
-{
-	current += sizeof(current);
-	stream.write((char*)&current, sizeof(current));
-}

@@ -34,17 +34,24 @@ public:
 
     bool canConnectTo(PortItem *port);
     bool isConnected();
+	bool pointIn(QPointF p);
 
     QString name();
     bool isOutput();
     NodeItem *node();
     ConnectionItem *connection();
-    int UID();
+	qint64 UID();
 	LnTypeHolder &lnType();
 
 	QPointF dotPos();
 
 	QRectF boundingRect() const override;
+
+	enum { Type = UserType + 3 };
+	inline int type() const override
+	{
+		return Type;
+	}
 
 private:
     bool needsSizeUpdate = false;
@@ -66,7 +73,7 @@ private:
 	qreal portTextWidth = 0;
 	qreal portTextHeight = 0;
     bool disablePainting = false;
-    int m_uid = 0;
+	qint64 m_uid = 0;
 };
 
 #endif // PORTITEM_H

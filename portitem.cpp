@@ -30,7 +30,7 @@ PortItem::PortItem(QGraphicsItem *parent) :
 	});
 }
 
-int PortItem::UID()
+qint64 PortItem::UID()
 {
     return m_uid;
 }
@@ -189,4 +189,12 @@ QPointF PortItem::dotPos()
 		return QPointF(portTextWidth + 10 + radius + scenePos().x(), radius + scenePos().y());
 	}
 	return QPointF(radius + scenePos().x(), radius + scenePos().y());
+}
+
+bool PortItem::pointIn(QPointF p)
+{
+	qreal x = p.x(), y = p.y(),
+		px = scenePos().x(), py = scenePos().y(),
+		bx = px + portTextWidth + 10 + radius*2, by = py + portTextHeight;
+	return (px <= x && py <= y && bx >= x && by >= y);
 }

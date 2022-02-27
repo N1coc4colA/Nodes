@@ -51,8 +51,8 @@ public:
 	~LinkType();
 
 	QString name = "";
-	int uid = -1;
-	QList<int> inherits = {};
+	qint64 uid = -1;
+	QList<qint64> inherits = {};
 	QColor color = Qt::gray;
 
 	void notifyEdit();
@@ -79,20 +79,20 @@ class LinksTypeHolder
 public:
 	explicit LinksTypeHolder();
 
-	QMap<int, int> uidMapped;
+	QMap<qint64, int> uidMapped;
 	QMap<QString, int> stringMapped;
 	QList<LnTypeHolder> types;
 
-	void addType(QString name, QList<int> inh, QColor c);
+	void addType(QString name, QList<qint64> inh, QColor c);
 	LnTypeHolder getByName(QString name);
 	LnTypeHolder getByUID(int uid);
 	void resolveInherits_(LnTypeHolder h, QList<QString> &input);
 	QList<QString> resolveInherits(QString);
-	void resolveInherits_(LnTypeHolder h, QList<int> &input);
-	QList<int> resolveInherits(int);
+	void resolveInherits_(LnTypeHolder h, QList<qint64> &input);
+	QList<qint64> resolveInherits(qint64);
 	QList<QString> typeNames();
 	int generateUID();
-	bool doesSInheritsE(int e, int s);
+	bool doesSInheritsE(qint64 e, qint64 s);
 
 	void cleanup();
 

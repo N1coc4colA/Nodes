@@ -7,67 +7,43 @@
 
 #include <QDate>
 
-#include <iostream>
 
-void StringsHolder::add(char *trg)
+void setupMetatypes()
 {
-	if (!strings.contains(trg)) {
-		strings << trg;
-	}
+	qRegisterMetaTypeStreamOperators<ColorData>("ColorData");
+	qRegisterMetaTypeStreamOperators<TypeData>("TypeData");
+	qRegisterMetaTypeStreamOperators<ConnectionData>("ConnectionData");
+	qRegisterMetaTypeStreamOperators<PortData>("PortData");
+	qRegisterMetaTypeStreamOperators<NodeData>("NodeData");
+	qRegisterMetaTypeStreamOperators<DateData>("DateData");
+	qRegisterMetaTypeStreamOperators<AdditionnalData>("AddtionnalData");
+	qRegisterMetaTypeStreamOperators<APIVersionData>("APIVersionData");
+	qRegisterMetaTypeStreamOperators<NodeDOM>("NodeDOM");
 }
 
-void StringsHolder::release(char *trg)
-{
-	if (strings.contains(trg)) {
-		strings.removeOne(trg);
-		delete [] trg;
-	}
-}
-
-void StringsHolder::release()
-{
-	for (auto v : strings) {
-		delete [] v;
-	}
-	strings.clear();
-}
-
-QColor ColorStruct::convert()
+QColor ColorData::convert()
 {
 	return QColor(r, g, b, a);
 }
 
-void ColorStruct::from(QColor c)
+void ColorData::from(QColor c)
 {
 	r = c.red();
 	g = c.green();
 	b = c.blue();
-	a = c.alpha();
-}
-
-TypeStruct::TypeStruct() {name = ""; inherits = {}; color = {0, 0, 0, 0}; ID = -1;}
-
-TypeStruct::TypeStruct(int id, ColorStruct c, QString n, QList<int> inh)
-	: ID(id), color(c), name(n), inherits(inh)
-{}
-
-TypeStruct::TypeStruct(const TypeStruct &src)
-{
-	if (&src != this) {
-		ID = src.ID;
-		color = src.color;
-		inherits = src.inherits;
+	if (c.alpha() < 0) {
+		a = 255;
+	} else {
+		a = c.alpha();
 	}
 }
 
-void TypeStruct::addConvertion()
+void TypeData::addConvertion()
 {
-	SharedInstances::instance()->typesHolder()->addType(QString::fromStdString(name.toStdString()),
-														inherits,
-														color.convert());
+	SharedInstances::instance()->typesHolder()->addType(name, inherits, color.convert());
 }
 
-void TypeStruct::from(LnTypeHolder holder)
+void TypeData::from(LnTypeHolder holder)
 {
 	if (holder.valid) {
 		inherits = holder.type->inherits;
@@ -77,34 +53,55 @@ void TypeStruct::from(LnTypeHolder holder)
 	}
 }
 
-TypeStruct &TypeStruct::operator=(const TypeStruct &src)
-{
-	ID = src.ID;
-	color = src.color;
-	name = src.name;
-	inherits = src.inherits;
-	return *this;
-}
-
-void PortStruct::from(PortItem *p)
+void PortData::from(PortItem *p)
 {
 	name = p->name();
 	ID = p->UID();
 	isOutput = p->isOutput();
 }
 
-void NodeStruct::from(NodeItem *p)
+void NodeData::from(NodeItem *p)
 {
 	ID = p->UID();
 	name = p->title();
 	type = p->textType();
 	xpos = p->scenePos().x();
 	ypos = p->scenePos().y();
+
+	QList<PortItem *> pl = p->ports();
+	for (auto p : pl) {
+		ports << p->UID();
+	}
 }
 
-void DateStruct::from(QDate date)
+void DateData::from(QDate date)
 {
 	day = date.day();
 	month = date.month();
 	year = date.year();
+}
+
+void NodeDOM::build(QString name)
+{
+	versioning = {VERSION_ALPHA, VERSION_BETA, VERSION_GAMMA};
+
+	additional.authorName = name;
+	additional.date.from(QDate::currentDate());
+	additional.has_types = !types.isEmpty();
+	additional.has_nodes = !nodes.isEmpty();
+	additional.has_ports = !ports.isEmpty();
+	additional.has_conns = !conns.isEmpty();
+	sum = summup();
+}
+
+quint64 NodeDOM::summup()
+{
+	quint64 out = 0;
+	out += additional.authorName.length();
+	out += additional.date.year - additional.date.month - additional.date.day;
+	out += types.length()+nodes.length()+ports.length()+conns.length();
+	out *= (((additional.has_types+additional.has_nodes+additional.has_ports+additional.has_conns)%2)
+			? -1
+			: 1);
+	return out;
 }

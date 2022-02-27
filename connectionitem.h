@@ -27,14 +27,21 @@ public:
     void updateStartEndPos();
     void updatePath();
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget = nullptr) override;
-	int UID();
+	qint64 UID();
+
+	enum { Type = UserType + 1 };
+
+	inline int type() const override
+	{
+		return Type;
+	}
 
 private:
     QPointF start_pos;
 	QPointF end_pos;
     PortItem *m_startPort = nullptr;
     PortItem *m_endPort = nullptr;
-	int m_uid = 0;
+	qint64 m_uid = 0;
 	bool m_highlighted = false;
 	bool m_warned = false;
 };

@@ -1,6 +1,9 @@
 #include "operationalmutex.h"
 
+#ifdef DEBUG_MUTEXES
 #include <iostream>
+#endif
+
 
 OperationalMutex::OperationalMutex() {}
 

@@ -11,62 +11,6 @@
 #include <QGraphicsProxyWidget>
 #include <QGraphicsSceneDragDropEvent>
 
-
-NodeItem *createInput()
-{
-    NodeItem *i = new NodeItem;
-    i->setTitle("A");
-    i->setTextType("input");
-    i->addPorts("output", true);
-    i->build();
-    return i;
-}
-
-NodeItem *createOutput()
-{
-    NodeItem *i = new NodeItem;
-    i->setTitle("A");
-    i->setTextType("output");
-    i->addPorts("input");
-    i->build();
-    return i;
-}
-
-NodeItem *createAnd()
-{
-    NodeItem *i = new NodeItem;
-    i->setTitle("AND");
-    i->setTextType("built-in");
-    i->addPorts("input A");
-    i->addPorts("input B");
-    i->addPorts("output", true);
-    i->build();
-    return i;
-}
-
-NodeItem *createNot()
-{
-    NodeItem *i = new NodeItem;
-    i->setTitle("NOT");
-    i->setTextType("built-in");
-    i->addPorts("input");
-    i->addPorts("output", true);
-    i->build();
-    return i;
-}
-
-NodeItem *createNor()
-{
-    NodeItem *i = new NodeItem;
-    i->setTitle("NOR");
-    i->setTextType("built-in");
-    i->addPorts("input");
-    i->addPorts("output", true);
-    i->build();
-    return i;
-}
-
-
 NodeWidget::NodeWidget(QWidget *p) : QWidget(p)
 {
     QVBoxLayout *mainLayout = new QVBoxLayout;
@@ -99,23 +43,10 @@ void NodeWidget::addNode(NodeItem *node)
 
 void NodeWidget::createNode(QString name)
 {
-    NodeItem *node;
-    if (name == "Input") {
-        node = createInput();
-    } else if (name == "Output") {
-        node = createOutput();
-    } else if (name == "Nor") {
-        node = createNor();
-    } else if (name == "Not") {
-        node = createNot();
-    } else if (name == "And") {
-        node = createAnd();
-    } else {
-        node = new NodeItem;
-    }
-
-    m_nodeScene->addItem(node);
-    node->setPos(m_view->mapToScene(m_view->mapFromGlobal(QCursor().pos())));
+	NodeItem *node = new NodeItem;
+	node->setTitle(name);
+	m_nodeScene->addItem(node);
+	node->setPos(m_view->mapToScene(m_view->mapFromGlobal(QCursor().pos())));
 }
 
 void NodeWidget::requestScaling(double s)
